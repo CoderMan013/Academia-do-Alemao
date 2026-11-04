@@ -1,0 +1,25 @@
+# Dependências
+node_modules/
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs e saídas de teste
+*.log
+_tests/*.out
+
+# Variáveis de ambiente / segredos
+.env
+.env.*
+!.env.example
+
+# Ferramentas locais
+.freebuff/
+.cloud-attachments/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
