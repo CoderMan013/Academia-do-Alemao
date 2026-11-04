@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 420" width="1600" height="420" role="img" aria-label="Academia do Alemão">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050505"/>
+      <stop offset="0.45" stop-color="#131313"/>
+      <stop offset="1" stop-color="#2c2c2c"/>
+    </linearGradient>
+    <linearGradient id="titulo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#dcdcdc"/>
+      <stop offset="1" stop-color="#8d8d8d"/>
+    </linearGradient>
+    <radialGradient id="brilho1" cx="0.18" cy="0.1" r="0.8">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="brilho2" cx="0.9" cy="1" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1600" height="420" fill="url(#fundo)"/>
+  <rect width="1600" height="420" fill="url(#brilho1)"/>
+  <rect width="1600" height="420" fill="url(#brilho2)"/>
+
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.08">
+    <circle cx="1400" cy="70" r="190"/>
+    <circle cx="1400" cy="70" r="120"/>
+    <circle cx="170" cy="380" r="150"/>
+  </g>
+
+  <g transform="translate(800 96)">
+    <circle cx="0" cy="0" r="27" fill="none" stroke="#ffffff" stroke-opacity="0.35"/>
+    <g stroke="#ffffff" stroke-width="2" stroke-linecap="round">
+      <path d="M-12 -6v12M-8 -9v18M8 -9v18M12 -6v12M-8 0h16"/>
+    </g>
+  </g>
+
+  <text x="800" y="228" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="86" font-weight="700" letter-spacing="-2" fill="url(#titulo)">Academia do Alemão</text>
+  <text x="800" y="282" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="22" letter-spacing="5" fill="#9a9a9a">ALUNO · PROFESSOR · MODALIDADES</text>
+  <rect x="690" y="318" width="220" height="1" fill="#ffffff" fill-opacity="0.25"/>
+</svg>
