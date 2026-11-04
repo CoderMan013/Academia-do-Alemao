@@ -1,17 +1,16 @@
 # Academia do Alemão — API em Flask
 
-Sistema de academia com três tabelas relacionadas — **Aluno**, **Professor** e **Matrícula** —
-autenticação JWT para os dois tipos de usuário e frontend servido pela própria API.
+Sistema de academia com três tabelas relacionadas — **Aluno**, **Matrícula** e **Pagamento** —,
+autenticação JWT e frontend servido pela própria API.
 
-A antiga tabela `Plano` foi substituída por `Professor`. As modalidades oferecidas são fixas:
-**Musculação, Cross Fit, Muay Thai, Karatê e Boxe**.
+Cada aluno entra com e-mail e senha, vê as próprias matrículas e cuida das mensalidades delas. As
+modalidades oferecidas são fixas: **Musculação, Cross Fit, Muay Thai, Karatê e Boxe**.
 
 | Item | Valor |
 | --- | --- |
 | Porta | `8081` |
 | Banco | `academia_db` (MySQL) |
 | Aluna de teste | `ana@academia.com` / `Senha@123` |
-| Professor de teste | `carlos@academia.com` / `Senha@123` |
 | Site | http://localhost:8081/Login.html |
 
 ---
@@ -26,17 +25,17 @@ A antiga tabela `Plano` foi substituída por `Professor`. As modalidades ofereci
 1. Abra o **MySQL Workbench** e conecte no seu MySQL local (usuário `root`, sem senha).
 2. Menu **File → Open SQL Script…** e escolha [`docs/Banco.sql`](docs/Banco.sql).
 3. Clique no raio ⚡ (**Execute**) para rodar o script inteiro.
-   Ele cria o banco `academia_db`, as tabelas `Aluno`, `Professor` e `Matricula` (com as duas
-   chaves estrangeiras) e já insere professores, alunos e matrículas de exemplo.
+   Ele cria o banco `academia_db`, as tabelas `Aluno`, `Matricula` e `Pagamento` (com as chaves
+   estrangeiras) e já insere alunos, matrículas e mensalidades de exemplo.
 4. No painel **SCHEMAS** (lateral esquerda), clique no ícone de recarregar e confirme que
    `academia_db` aparece com as três tabelas.
 5. Para conferir os dados, rode:
 
    ```sql
    USE academia_db;
-   SELECT idProfessor, nomeProfessor, modalidades FROM Professor;
    SELECT idAluno, nomeAluno, email FROM Aluno;
-   SELECT idMatricula, modalidade, status, Aluno_idAluno, Professor_idProfessor FROM Matricula;
+   SELECT idMatricula, modalidade, status, Aluno_idAluno FROM Matricula;
+   SELECT idPagamento, valor, dataVencimento, status, Matricula_idMatricula FROM Pagamento;
    ```
 
 > Alternativa: em vez de rodar o script na mão, execute `python install.py` — ele instala as
@@ -86,34 +85,18 @@ Abra **http://localhost:8081/Login.html** no navegador.
 
 ## 5. As telas
 
-### Login
+### Login e cadastro
 
-Um único formulário: a API procura o e-mail primeiro em `Aluno` e depois em `Professor`, então
-aluno e professor entram pelo mesmo lugar. O painel que abre depende do papel que veio no token.
-
-### Cadastro em duas etapas
-
-1. **Etapa 1 — quem é você:** nome e escolha entre **Aluno** e **Professor**.
-2. **Etapa 2 — seus dados:** e-mail, senha e confirmação. Se for professor, aparece também a
-   lista das 5 modalidades para marcar as que ele quer lecionar.
-
-A conta é criada por `POST /api/v1/auth/registrar`, que já devolve o token — o usuário cai direto
-no painel.
+Um único formulário de login e um cadastro simples: nome, e-mail, senha e confirmação. A conta é
+criada por `POST /api/v1/auth/registrar`, que já devolve o token — o aluno cai direto no painel.
 
 ### Painel do aluno
 
-- Cartões com **cada modalidade**, o **professor** que leciona, o período e **quantos dias faltam**
-  para o plano terminar (com barra de progresso).
-- Botão **Remover** para sair de uma turma.
-- Formulário **Iniciar novo plano**: modalidade → professor (só aparecem os que lecionam aquela
-  modalidade) → duração (1, 3, 6 ou 12 meses) → início.
-
-### Painel do professor
-
-- **Modalidades que leciono**: chips clicáveis para entrar ou sair de uma modalidade.
-  Se houver aluno ativo na modalidade, a API bloqueia a saída (o aluno ficaria sem professor).
-- **Meus alunos**: tabela com aluno, e-mail, modalidade, período, situação e dias restantes,
-  com filtro por nome ou modalidade.
+- **Minhas modalidades:** cartões com cada modalidade, o período do plano e quantos dias faltam
+  (com barra de progresso), além de quantas mensalidades existem naquela matrícula.
+- **Iniciar novo plano:** modalidade → duração (1, 3, 6 ou 12 meses) → data de início.
+- **Minhas mensalidades:** tabela com modalidade, vencimento, valor, forma de pagamento, status
+  e data em que foi paga. O aluno pode registrar uma nova mensalidade, marcar como paga e excluir.
 
 ## 6. Endpoints
 
@@ -121,9 +104,9 @@ no painel.
 
 | Método | Rota | O que faz |
 | --- | --- | --- |
-| POST | `/api/v1/auth/login` | autentica aluno **ou** professor e devolve o token |
-| POST | `/api/v1/auth/registrar` | cria a conta (`tipo: "aluno"` ou `"professor"`) e devolve o token |
-| GET | `/api/v1/modalidades` | as 5 modalidades e os professores de cada uma |
+| POST | `/api/v1/auth/login` | autentica o aluno e devolve o token |
+| POST | `/api/v1/auth/registrar` | cria a conta (`nome`, `email`, `senha`) e devolve o token |
+| GET | `/api/v1/modalidades` | as 5 modalidades e as durações de plano |
 
 Exemplo de login:
 
@@ -148,41 +131,53 @@ Resposta (resumida):
 
 ### Autenticados (`Authorization: Bearer <token>`)
 
-| Método | Rota | Papel | O que faz |
-| --- | --- | --- | --- |
-| GET | `/api/v1/auth/sessao` | qualquer | devolve os claims do token |
-| GET | `/api/v1/matriculas/minhas` | aluno | matrículas do próprio aluno |
-| POST | `/api/v1/matriculas` | aluno/professor | inicia um plano (aluno usa o próprio id) |
-| DELETE | `/api/v1/matriculas/:idMatricula` | dono | remove a matrícula |
-| GET | `/api/v1/professores/me` | professor | perfil do professor logado |
-| GET | `/api/v1/professores/me/alunos` | professor | matrículas das turmas dele |
-| PUT | `/api/v1/professores/me/modalidades` | professor | entra/sai de modalidades |
-| GET/POST | `/api/v1/alunos` | qualquer | lista / cadastra alunos |
-| GET/PUT/DELETE | `/api/v1/alunos/:idAluno` | qualquer | busca / atualiza / exclui |
-| GET/POST | `/api/v1/professores` | qualquer | lista / cadastra professores |
-| GET/PUT/DELETE | `/api/v1/professores/:idProfessor` | qualquer | busca / atualiza / exclui |
-| GET | `/api/v1/matriculas` | qualquer | lista todas as matrículas |
-| GET/PUT | `/api/v1/matriculas/:idMatricula` | dono | busca / atualiza uma matrícula |
+| Método | Rota | O que faz |
+| --- | --- | --- |
+| GET | `/api/v1/auth/sessao` | devolve os claims do token |
+| GET | `/api/v1/matriculas/minhas` | matrículas do aluno logado |
+| GET/POST | `/api/v1/matriculas` | lista todas / inicia um plano para o aluno do token |
+| GET/PUT/DELETE | `/api/v1/matriculas/:idMatricula` | busca / atualiza / remove (só o dono) |
+| GET | `/api/v1/pagamentos/minhas` | mensalidades do aluno logado |
+| GET | `/api/v1/pagamentos/matricula/:idMatricula` | mensalidades de uma matrícula do aluno |
+| GET/POST | `/api/v1/pagamentos` | lista todas / registra uma mensalidade |
+| GET/PUT/DELETE | `/api/v1/pagamentos/:idPagamento` | busca / atualiza / exclui (só o dono) |
+| GET/POST | `/api/v1/alunos` | lista / cadastra alunos |
+| GET/PUT/DELETE | `/api/v1/alunos/:idAluno` | busca / atualiza / exclui |
 
-Exemplo de matrícula (aluno logado):
+Exemplo de mensalidade (aluno logado):
 
 ```bash
-curl -X POST http://localhost:8081/api/v1/matriculas \
+curl -X POST http://localhost:8081/api/v1/pagamentos \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
-  -d '{"matricula":{"modalidade":"Boxe","dataInicio":"2026-11-03","duracaoMeses":3,"professor":{"idProfessor":1}}}'
+  -d '{"pagamento":{"valor":120,"dataVencimento":"2026-12-05","metodo":"Pix","matricula":{"idMatricula":1}}}'
+```
+
+Para marcar como paga, basta um `PUT` com o novo status — a data de pagamento é preenchida com o
+dia de hoje:
+
+```bash
+curl -X PUT http://localhost:8081/api/v1/pagamentos/3 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"pagamento":{"status":"pago"}}'
 ```
 
 ## 7. Regras de negócio
 
-- o e-mail é único entre **alunos e professores** (é a credencial de login);
-- o professor só pode lecionar modalidades da lista fixa;
+- o e-mail é único (é a credencial de login);
 - o aluno só pode ter **uma matrícula ativa por modalidade** (pode ter várias modalidades);
-- o professor da matrícula precisa lecionar aquela modalidade;
-- `dataFim` é calculada com `duracaoMeses` (padrão 3) quando não é informada;
-- o aluno só altera/remove as próprias matrículas; o professor, as das próprias turmas;
-- não é possível excluir aluno/professor com matrícula vinculada (**400**);
-- não é possível sair de uma modalidade que ainda tem aluno ativo (**400**).
+- a modalidade precisa estar na lista fixa; `dataFim` é calculada com `duracaoMeses` (padrão 3);
+- **o dono de matrículas e pagamentos vem sempre do token** — ninguém mexe no que é de outro aluno
+  (**403**);
+- cada pagamento pertence a uma matrícula; ao excluir a matrícula, as mensalidades dela somem
+  junto (`ON DELETE CASCADE`);
+- o pagamento nasce **pendente**; se ficar pendente com vencimento no passado, a listagem mostra
+  **atrasado** (calculado na consulta);
+- ao marcar como **pago** sem informar a data, a data de pagamento recebe o dia de hoje; voltando
+  para outro status, a data é limpa;
+- valor precisa ser maior que zero e no máximo 100000; método aceita `Pix`, `Cartão` ou `Dinheiro`;
+- não é possível excluir um aluno com matrícula vinculada (**400**).
 
 ## 8. Estrutura
 
@@ -197,7 +192,7 @@ Academia.flask/
 └── api/
     ├── domain/               lista fixa das 5 modalidades
     ├── router/               Blueprints com as rotas
-    ├── middleware/           JWT, papel (aluno/professor) e validações
+    ├── middleware/           JWT e validações de corpo
     ├── control/              camada HTTP (envelope { success, message, data })
     ├── service/              regras de negócio
     ├── dao/                  SQL

@@ -327,36 +327,6 @@ select.input option {
   flex-wrap: wrap;
 }
 
-.tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.tab {
-  padding: 9px 18px;
-  font: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-
-.tab:hover {
-  color: var(--white);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.tab.is-active {
-  color: var(--ink);
-  background: #ffffff;
-  border-color: #ffffff;
-}
-
 .panel {
   padding: 22px;
   display: flex;
@@ -463,6 +433,33 @@ select.input option {
   border-color: rgba(150, 190, 255, 0.45);
 }
 
+.chip--pago {
+  color: #c9f7c3;
+  border-color: rgba(150, 240, 140, 0.45);
+}
+
+.chip--pendente {
+  color: #ffe6b8;
+  border-color: rgba(255, 205, 120, 0.45);
+}
+
+.chip--atrasado {
+  color: #ffc0c0;
+  border-color: rgba(255, 130, 130, 0.45);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panel__subtitle {
+  margin: 18px 0 10px;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
 /* ------------------------------- modal ------------------------------- */
 
 .modal {
@@ -506,137 +503,8 @@ select.input option {
   gap: 10px;
 }
 
-/* ------------------- cadastro em duas etapas / papéis ---------------- */
-
 .auth__card--wide {
   max-width: 470px;
-}
-
-.steps {
-  display: flex;
-  gap: 10px;
-  margin: 0 0 4px;
-  padding: 0;
-  list-style: none;
-  counter-reset: etapa;
-}
-
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
-.step span {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.step.is-active {
-  color: var(--white);
-}
-
-.step.is-active span {
-  color: var(--ink);
-  background: #ffffff;
-  border-color: #ffffff;
-}
-
-.fieldset {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.fieldset legend {
-  padding: 0;
-  margin-bottom: 2px;
-}
-
-.role-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.role-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.04);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.role-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.role-card input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.role-card:has(input:checked) {
-  border-color: #ffffff;
-  background: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
-}
-
-.role-card__title {
-  font-size: 0.98rem;
-  font-weight: 700;
-}
-
-.role-card__text {
-  font-size: 0.76rem;
-  color: var(--muted);
-  line-height: 1.35;
-}
-
-.check-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  font-size: 0.86rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  cursor: pointer;
-}
-
-.check input {
-  accent-color: #ffffff;
-}
-
-.check:has(input:checked) {
-  border-color: rgba(255, 255, 255, 0.65);
-  background: rgba(255, 255, 255, 0.14);
 }
 
 /* ------------------------------ painel ------------------------------ */
@@ -668,11 +536,6 @@ select.input option {
 .badge--aluno {
   color: #cfe2ff;
   border-color: rgba(150, 190, 255, 0.45);
-}
-
-.badge--professor {
-  color: #ffe6b8;
-  border-color: rgba(255, 205, 120, 0.45);
 }
 
 .stat-grid {
@@ -827,8 +690,4 @@ select.input option {
     padding: 18px 16px;
   }
 
-  .role-grid,
-  .check-grid {
-    grid-template-columns: 1fr;
-  }
 }

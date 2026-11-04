@@ -11,7 +11,7 @@
   },
   "author": "Projeto PAW",
   "license": "ISC",
-  "description": "API REST MVCS em MySQL - Academia (alunos, professores, modalidades e matriculas) com JWT",
+  "description": "API REST MVCS em MySQL - Academia (alunos, modalidades, matriculas e pagamentos) com JWT",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",

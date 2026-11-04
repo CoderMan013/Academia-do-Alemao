@@ -26,7 +26,7 @@ class AuthRoteador:
     def create_routes(self):
         """
         Rotas implementadas (registradas em /api/v1/auth):
-        - POST /login     -> autentica aluno ou professor
+        - POST /login     -> autentica o aluno
         - POST /registrar -> cria a conta e devolve o token
         - GET  /sessao    -> quem está logado (token)
         """

@@ -3,8 +3,8 @@ const Matricula = require("../models/Matricula");
 /**
  * DAO da tabela Matricula.
  *
- * Como Matricula é a tabela do meio, as consultas de leitura usam JOIN
- * para devolver o aluno e o professor já aninhados no objeto.
+ * As consultas de leitura usam JOIN com Aluno para devolver o aluno
+ * já aninhado no objeto.
  */
 module.exports = class MatriculaDAO {
     #database;
@@ -19,15 +19,14 @@ module.exports = class MatriculaDAO {
         console.log("🟢 MatriculaDAO.create()");
 
         const SQL = `
-            INSERT INTO Matricula (dataInicio, dataFim, status, modalidade, Aluno_idAluno, Professor_idProfessor)
-            VALUES (?, ?, ?, ?, ?, ?);`;
+            INSERT INTO Matricula (modalidade, dataInicio, dataFim, status, Aluno_idAluno)
+            VALUES (?, ?, ?, ?, ?);`;
         const params = [
+            objMatricula.modalidade,
             objMatricula.dataInicio,
             objMatricula.dataFim,
             objMatricula.status,
-            objMatricula.modalidade,
-            objMatricula.aluno.idAluno,
-            objMatricula.professor.idProfessor
+            objMatricula.aluno.idAluno
         ];
 
         const pool = await this.#database.getPool();
@@ -58,16 +57,14 @@ module.exports = class MatriculaDAO {
 
         const SQL = `
             UPDATE Matricula
-            SET dataInicio = ?, dataFim = ?, status = ?, modalidade = ?,
-                Aluno_idAluno = ?, Professor_idProfessor = ?
+            SET modalidade = ?, dataInicio = ?, dataFim = ?, status = ?, Aluno_idAluno = ?
             WHERE idMatricula = ?;`;
         const params = [
+            objMatricula.modalidade,
             objMatricula.dataInicio,
             objMatricula.dataFim,
             objMatricula.status,
-            objMatricula.modalidade,
             objMatricula.aluno.idAluno,
-            objMatricula.professor.idProfessor,
             objMatricula.idMatricula
         ];
 
@@ -82,12 +79,10 @@ module.exports = class MatriculaDAO {
         console.log("🟢 MatriculaDAO.findAll()");
 
         const SQL = `
-            SELECT m.idMatricula, m.dataInicio, m.dataFim, m.status, m.modalidade,
-                   a.idAluno, a.nomeAluno, a.email AS emailAluno,
-                   p.idProfessor, p.nomeProfessor, p.email AS emailProfessor
+            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+                   a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
-            JOIN Professor p ON p.idProfessor = m.Professor_idProfessor
             ORDER BY m.idMatricula;`;
 
         const pool = await this.#database.getPool();
@@ -110,38 +105,24 @@ module.exports = class MatriculaDAO {
         return await this.findByField("Aluno_idAluno", idAluno);
     };
 
-    /** @param {number} idProfessor @returns {Promise<Array>} */
-    findByProfessor = async (idProfessor) => {
-        console.log("🟢 MatriculaDAO.findByProfessor()");
-        return await this.findByField("Professor_idProfessor", idProfessor);
-    };
-
     /**
-     * @param {string} field - idMatricula | status | modalidade | Aluno_idAluno | Professor_idProfessor
+     * @param {string} field - idMatricula | status | modalidade | Aluno_idAluno
      * @param {*} value
      * @returns {Promise<Array>}
      */
     findByField = async (field, value) => {
         console.log(`🟢 MatriculaDAO.findByField() - Campo: ${field}, Valor: ${value}`);
 
-        const allowedFields = [
-            "idMatricula",
-            "status",
-            "modalidade",
-            "Aluno_idAluno",
-            "Professor_idProfessor"
-        ];
+        const allowedFields = ["idMatricula", "status", "modalidade", "Aluno_idAluno"];
         if (!allowedFields.includes(field)) {
             throw new Error(`Campo inválido para busca: ${field}`);
         }
 
         const SQL = `
-            SELECT m.idMatricula, m.dataInicio, m.dataFim, m.status, m.modalidade,
-                   a.idAluno, a.nomeAluno, a.email AS emailAluno,
-                   p.idProfessor, p.nomeProfessor, p.email AS emailProfessor
+            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+                   a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
-            JOIN Professor p ON p.idProfessor = m.Professor_idProfessor
             WHERE m.${field} = ?
             ORDER BY m.idMatricula;`;
 
@@ -162,49 +143,6 @@ module.exports = class MatriculaDAO {
 
         let SQL = "SELECT COUNT(*) AS total FROM Matricula WHERE Aluno_idAluno = ?";
         const params = [idAluno];
-
-        if (status) {
-            SQL += " AND status = ?";
-            params.push(status);
-        }
-
-        const pool = await this.#database.getPool();
-        const [resultado] = await pool.execute(SQL, params);
-
-        return Number(resultado[0].total);
-    };
-
-    /**
-     * Quantidade de matrículas de um professor (impede excluir professor em uso).
-     * @param {number} idProfessor
-     * @returns {Promise<number>}
-     */
-    countByProfessor = async (idProfessor) => {
-        console.log("🟢 MatriculaDAO.countByProfessor()");
-
-        const SQL = "SELECT COUNT(*) AS total FROM Matricula WHERE Professor_idProfessor = ?;";
-
-        const pool = await this.#database.getPool();
-        const [resultado] = await pool.execute(SQL, [idProfessor]);
-
-        return Number(resultado[0].total);
-    };
-
-    /**
-     * Matrículas de um professor em uma modalidade (impede sair de modalidade em uso).
-     * @param {number} idProfessor
-     * @param {string} modalidade
-     * @param {string|null} status
-     * @returns {Promise<number>}
-     */
-    countByProfessorModalidade = async (idProfessor, modalidade, status = null) => {
-        console.log("🟢 MatriculaDAO.countByProfessorModalidade()");
-
-        let SQL = `
-            SELECT COUNT(*) AS total
-            FROM Matricula
-            WHERE Professor_idProfessor = ? AND modalidade = ?`;
-        const params = [idProfessor, modalidade];
 
         if (status) {
             SQL += " AND status = ?";
@@ -250,22 +188,17 @@ module.exports = class MatriculaDAO {
         return Number(resultado[0].total);
     };
 
-    /** Monta o objeto aninhado (aluno + professor) a partir da linha do JOIN. */
+    /** Monta o objeto aninhado (aluno) a partir da linha do JOIN. */
     static montarObjeto = (linha) => ({
         idMatricula: Number(linha.idMatricula),
+        modalidade: linha.modalidade,
         dataInicio: String(linha.dataInicio).slice(0, 10),
         dataFim: String(linha.dataFim).slice(0, 10),
         status: linha.status,
-        modalidade: linha.modalidade,
         aluno: {
             idAluno: Number(linha.idAluno),
             nomeAluno: linha.nomeAluno,
             email: linha.emailAluno
-        },
-        professor: {
-            idProfessor: Number(linha.idProfessor),
-            nomeProfessor: linha.nomeProfessor,
-            email: linha.emailProfessor
         }
     });
 };

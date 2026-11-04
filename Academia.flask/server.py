@@ -6,40 +6,39 @@ from flask_cors import CORS
 from werkzeug.exceptions import HTTPException, NotFound
 
 from api.database.mysql_database import MysqlDatabase
-from api.domain.modalidades import MODALIDADES
+from api.domain.modalidades import MODALIDADES, DURACOES
 from api.utils.error_response import ErrorResponse
 from api.utils.logger import Logger
 
 # Middlewares
 from api.middleware.jwt_middleware import JwtMiddleware
-from api.middleware.role_middleware import RoleMiddleware
 from api.middleware.auth_middleware import AuthMiddleware
 from api.middleware.aluno_middleware import AlunoMiddleware
-from api.middleware.professor_middleware import ProfessorMiddleware
 from api.middleware.matricula_middleware import MatriculaMiddleware
+from api.middleware.pagamento_middleware import PagamentoMiddleware
 
 # Controls
 from api.control.auth_control import AuthControl
 from api.control.aluno_control import AlunoControl
-from api.control.professor_control import ProfessorControl
 from api.control.matricula_control import MatriculaControl
+from api.control.pagamento_control import PagamentoControl
 
 # Services
 from api.service.auth_service import AuthService
 from api.service.aluno_service import AlunoService
-from api.service.professor_service import ProfessorService
 from api.service.matricula_service import MatriculaService
+from api.service.pagamento_service import PagamentoService
 
 # DAOs
 from api.dao.aluno_dao import AlunoDAO
-from api.dao.professor_dao import ProfessorDAO
 from api.dao.matricula_dao import MatriculaDAO
+from api.dao.pagamento_dao import PagamentoDAO
 
 # Routers
 from api.router.auth_roteador import AuthRoteador
 from api.router.aluno_roteador import AlunoRoteador
-from api.router.professor_roteador import ProfessorRoteador
 from api.router.matricula_roteador import MatriculaRoteador
+from api.router.pagamento_roteador import PagamentoRoteador
 
 
 class Server:
@@ -48,7 +47,7 @@ class Server:
 
     Responsável por inicializar middlewares, roteadores e gerenciar a aplicação.
 
-    Entidades: Aluno, Professor (no lugar do antigo Plano) e Matricula.
+    Entidades: Aluno, Matricula e Pagamento.
     """
 
     def __init__(self, porta: int = 8081):
@@ -66,26 +65,25 @@ class Server:
 
         # 🔹 Middlewares
         self.__jwt_middleware = JwtMiddleware()
-        self.__role_middleware = RoleMiddleware()
         self.__auth_middleware = AuthMiddleware()
         self.__aluno_middleware = AlunoMiddleware()
-        self.__professor_middleware = ProfessorMiddleware()
         self.__matricula_middleware = MatriculaMiddleware()
+        self.__pagamento_middleware = PagamentoMiddleware()
 
         # 🔹 DAOs, Services e Controls serão inicializados após conexão com DB
         self.__aluno_dao = None
-        self.__professor_dao = None
         self.__matricula_dao = None
+        self.__pagamento_dao = None
 
         self.__auth_service = None
         self.__aluno_service = None
-        self.__professor_service = None
         self.__matricula_service = None
+        self.__pagamento_service = None
 
         self.__auth_control = None
         self.__aluno_control = None
-        self.__professor_control = None
         self.__matricula_control = None
+        self.__pagamento_control = None
 
         # 🔹 Conexão global com o banco
         self.__db_connection = None
@@ -118,35 +116,26 @@ class Server:
 
         # 🔹 DAOs compartilhados entre os services
         self.__aluno_dao = AlunoDAO(self.__db_connection)
-        self.__professor_dao = ProfessorDAO(self.__db_connection)
         self.__matricula_dao = MatriculaDAO(self.__db_connection)
+        self.__pagamento_dao = PagamentoDAO(self.__db_connection)
 
         # 🔹 Services
         self.__aluno_service = AlunoService(self.__aluno_dao, self.__matricula_dao)
-        self.__professor_service = ProfessorService(self.__professor_dao, self.__matricula_dao)
-        self.__matricula_service = MatriculaService(
-            self.__matricula_dao,
-            self.__aluno_dao,
-            self.__professor_dao
-        )
-        self.__auth_service = AuthService(
-            self.__aluno_dao,
-            self.__professor_dao,
-            self.__aluno_service,
-            self.__professor_service
-        )
+        self.__matricula_service = MatriculaService(self.__matricula_dao, self.__aluno_dao)
+        self.__pagamento_service = PagamentoService(self.__pagamento_dao, self.__matricula_dao)
+        self.__auth_service = AuthService(self.__aluno_dao, self.__aluno_service)
 
         # 🔹 Controls
         self.__auth_control = AuthControl(self.__auth_service)
         self.__aluno_control = AlunoControl(self.__aluno_service)
-        self.__professor_control = ProfessorControl(self.__professor_service)
         self.__matricula_control = MatriculaControl(self.__matricula_service)
+        self.__pagamento_control = PagamentoControl(self.__pagamento_service)
 
         # 🔹 Configuração dos módulos
         self.__setup_auth()
         self.__setup_aluno()
-        self.__setup_professor()
         self.__setup_matricula()
+        self.__setup_pagamento()
         self.__setup_modalidades()
 
         # 🔹 Middleware global de tratamento de erros
@@ -176,61 +165,46 @@ class Server:
 
         self.__app.register_blueprint(aluno_router.create_routes(), url_prefix="/api/v1/alunos")
 
-    def __setup_professor(self):
-        """Configura o módulo Professor (DAO, Service, Control, Router)"""
-        print("⬆️  Setup Professor")
-
-        professor_router = ProfessorRoteador(
-            self.__jwt_middleware,
-            self.__role_middleware,
-            self.__professor_middleware,
-            self.__professor_control
-        )
-
-        self.__app.register_blueprint(professor_router.create_routes(), url_prefix="/api/v1/professores")
-
     def __setup_matricula(self):
-        """Configura o módulo Matricula (DAO, Service, Control, Router)"""
+        """Configura o módulo Matrícula em /api/v1/matriculas"""
         print("⬆️  Setup Matrícula")
 
         matricula_router = MatriculaRoteador(
             self.__jwt_middleware,
-            self.__role_middleware,
             self.__matricula_middleware,
             self.__matricula_control
         )
 
         self.__app.register_blueprint(matricula_router.create_routes(), url_prefix="/api/v1/matriculas")
 
+    def __setup_pagamento(self):
+        """Configura o módulo Pagamento em /api/v1/pagamentos"""
+        print("⬆️  Setup Pagamento")
+
+        pagamento_router = PagamentoRoteador(
+            self.__jwt_middleware,
+            self.__pagamento_middleware,
+            self.__pagamento_control
+        )
+
+        self.__app.register_blueprint(pagamento_router.create_routes(), url_prefix="/api/v1/pagamentos")
+
     def __setup_modalidades(self):
         """
-        Rota pública com as 5 modalidades e os professores que as lecionam.
-        É usada na tela de cadastro do professor e no painel do aluno.
+        Rota pública com as 5 modalidades e as durações de plano.
+        É usada no painel do aluno.
         """
         print("⬆️  Setup Modalidades")
 
         @self.__app.route("/api/v1/modalidades", methods=["GET"])
         def modalidades():
-            professores = self.__professor_service.findAll()
-
-            lista = []
-            for nome in MODALIDADES:
-                lista.append({
-                    "nome": nome,
-                    "professores": [
-                        {
-                            "idProfessor": professor["idProfessor"],
-                            "nomeProfessor": professor["nomeProfessor"],
-                        }
-                        for professor in professores
-                        if nome in professor["modalidades"]
-                    ],
-                })
-
             return jsonify({
                 "success": True,
                 "message": "Busca realizada com sucesso",
-                "data": {"modalidades": lista},
+                "data": {
+                    "modalidades": [{"nome": nome} for nome in MODALIDADES],
+                    "duracoes": DURACOES,
+                },
             }), 200
 
     def __setup_static(self):

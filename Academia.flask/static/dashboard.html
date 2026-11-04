@@ -21,7 +21,7 @@
           <h1 class="brand__title">Academia do Alemão</h1>
           <p class="brand__subtitle">
             <span id="boasVindas">—</span>
-            <span class="badge" id="badgePapel">—</span>
+            <span class="badge badge--aluno">Aluno</span>
           </p>
         </div>
       </div>
@@ -32,15 +32,15 @@
       </div>
     </header>
 
-    <!-- ============================ VISÃO ALUNO ============================ -->
-    <div class="view" id="viewAluno" hidden>
+    <div class="view" id="viewAluno">
       <section class="stat-grid" id="statsAluno" aria-label="Resumo do aluno"></section>
 
+      <!-- ---------------------------- MATRÍCULAS ---------------------------- -->
       <section class="card panel">
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Minhas modalidades</h2>
-            <p class="hint">Cada cartão é uma turma: modalidade, professor e tempo restante do plano.</p>
+            <p class="hint">Cada cartão é uma turma: modalidade e tempo restante do plano.</p>
           </div>
           <p class="hint" id="msgAluno" role="status"></p>
         </div>
@@ -52,7 +52,7 @@
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Iniciar novo plano</h2>
-            <p class="hint">Escolha a modalidade e o professor que leciona ela.</p>
+            <p class="hint">Escolha a modalidade e por quanto tempo você quer treinar.</p>
           </div>
         </div>
 
@@ -60,11 +60,6 @@
           <label class="field">
             <span class="field__label">Modalidade</span>
             <select class="input" id="selModalidade"></select>
-          </label>
-
-          <label class="field">
-            <span class="field__label">Professor</span>
-            <select class="input" id="selProfessor"></select>
           </label>
 
           <label class="field">
@@ -88,35 +83,51 @@
           <span class="hint" id="msgNova" role="status"></span>
         </div>
       </section>
-    </div>
 
-    <!-- ========================== VISÃO PROFESSOR ========================== -->
-    <div class="view" id="viewProfessor" hidden>
-      <section class="stat-grid" id="statsProfessor" aria-label="Resumo do professor"></section>
-
+      <!-- ---------------------------- PAGAMENTOS ---------------------------- -->
       <section class="card panel">
         <div class="panel__head">
           <div>
-            <h2 class="panel__title">Modalidades que leciono</h2>
-            <p class="hint">Clique em uma modalidade para começar ou parar de lecioná-la.</p>
+            <h2 class="panel__title">Minhas mensalidades</h2>
+            <p class="hint">Cada matrícula tem várias mensalidades. Marque como paga quando acertar.</p>
           </div>
-          <p class="hint" id="msgModalidades" role="status"></p>
+          <p class="hint" id="msgPagamentos" role="status"></p>
         </div>
 
-        <div class="chips" id="chipsModalidades"></div>
-      </section>
+        <div class="table-wrap" id="tabelaPagamentos"></div>
 
-      <section class="card panel">
-        <div class="panel__head">
-          <div>
-            <h2 class="panel__title">Meus alunos</h2>
-            <p class="hint">Matrículas das turmas que você leciona.</p>
-          </div>
-          <input class="input input--small" id="filtroAlunos" type="search" placeholder="Filtrar aluno ou modalidade…" />
+        <h3 class="panel__subtitle">Registrar mensalidade</h3>
+
+        <form class="form-grid" id="formPagamento" autocomplete="off">
+          <label class="field">
+            <span class="field__label">Matrícula</span>
+            <select class="input" id="selMatriculaPagamento"></select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Valor (R$)</span>
+            <input class="input" id="txtValor" type="number" min="0" max="100000" step="0.01" placeholder="120.00" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Vencimento</span>
+            <input class="input" id="txtVencimento" type="date" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Forma de pagamento</span>
+            <select class="input" id="selMetodo">
+              <option value="Pix">Pix</option>
+              <option value="Cartão">Cartão</option>
+              <option value="Dinheiro">Dinheiro</option>
+            </select>
+          </label>
+        </form>
+
+        <div class="panel__actions">
+          <button class="btn btn--primary" id="btnPagamento" type="button">Registrar</button>
+          <span class="hint" id="msgNovoPagamento" role="status"></span>
         </div>
-
-        <div class="table-wrap" id="tabelaAlunos"></div>
-        <p class="hint" id="msgAlunos" role="status"></p>
       </section>
     </div>
   </div>
@@ -126,6 +137,7 @@
     <div class="card modal__box">
       <h3 class="modal__title">Sair da modalidade</h3>
       <p class="modal__text" id="textoRemocao">Tem certeza que deseja remover esta matrícula?</p>
+      <p class="modal__text">As mensalidades dessa matrícula também serão apagadas.</p>
       <div class="modal__actions">
         <button class="btn btn--ghost btn--tiny" id="btnCancelarRemocao" type="button">Cancelar</button>
         <button class="btn btn--danger btn--tiny" id="btnConfirmarRemocao" type="button">Remover</button>

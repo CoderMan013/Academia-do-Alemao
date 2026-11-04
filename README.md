@@ -8,58 +8,56 @@
   <img alt="Flask" src="https://img.shields.io/badge/Flask-3-000000?style=flat-square&logo=flask&logoColor=white">
   <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8-4479A1?style=flat-square&logo=mysql&logoColor=white">
   <img alt="JWT" src="https://img.shields.io/badge/JWT-autentica%C3%A7%C3%A3o-000000?style=flat-square&logo=jsonwebtokens&logoColor=white">
-  <img alt="Testes" src="https://img.shields.io/badge/testes-88%2F88-brightgreen?style=flat-square">
+  <img alt="Testes" src="https://img.shields.io/badge/testes-92%2F92-brightgreen?style=flat-square">
 </p>
 
 <p align="center">
   Sistema de academia com <strong>duas APIs independentes</strong>, o mesmo frontend e um banco MySQL
-  de três tabelas. Aluno e professor entram pelo mesmo login, e o painel que abre depende do
-  papel que vem no token.
+  de três tabelas. O aluno entra, escolhe a modalidade e acompanha as mensalidades do plano.
 </p>
 
 ## Sobre
 
 O projeto nasceu como trabalho de faculdade e foi implementado duas vezes, com as mesmas regras
-e as mesmas telas: uma API em **Node.js/Express** e outra em **Flask**. A antiga tabela `Plano`
-deu lugar a `Professor`, então o modelo ficou com três tabelas relacionadas:
+e as mesmas telas: uma API em **Node.js/Express** e outra em **Flask**. O modelo tem três tabelas
+relacionadas — **Aluno**, **Matrícula** e **Pagamento**:
 
 ```
-Professor 1 ─── N Matrícula N ─── 1 Aluno
+Aluno 1 ─── N Matrícula 1 ─── N Pagamento
 ```
 
-Cada matrícula guarda a **modalidade**, o **professor responsável**, o período e a duração do
-plano. As modalidades são fixas: **Musculação, Cross Fit, Muay Thai, Karatê e Boxe**.
+Cada matrícula guarda a **modalidade**, o período e a duração do plano; cada pagamento é uma
+**mensalidade** daquela matrícula. As modalidades são fixas: **Musculação, Cross Fit, Muay Thai,
+Karatê e Boxe**.
 
 ## Telas
 
-| Painel do aluno | Painel do professor |
+| Painel do aluno | Minhas mensalidades |
 | :---: | :---: |
-| ![Painel do aluno](docs/img/painel-aluno.png) | ![Painel do professor](docs/img/painel-professor.png) |
-| Modalidades, professor e dias restantes | Modalidades que leciona e seus alunos |
+| ![Painel do aluno](docs/img/painel-aluno.png) | ![Mensalidades](docs/img/painel-mensalidades.png) |
+| Modalidades, dias restantes e situação | Tabela de mensalidades e formulário de registro |
 
-| Login | Cadastro em duas etapas |
+| Login | Cadastro |
 | :---: | :---: |
 | ![Login](docs/img/login.png) | ![Cadastro](docs/img/cadastro.png) |
-| Um formulário para os dois papéis | Dados e modalidades do professor |
+| Um formulário só, com link para o cadastro | Nome, e-mail e senha em uma única etapa |
 
 ## Como funciona
 
 ```mermaid
 flowchart LR
-  A[Login ou cadastro] --> B{JWT com o papel}
-  B -->|aluno| C[Painel do aluno]
-  B -->|professor| D[Painel do professor]
-  C --> E[(MySQL<br/>Aluno · Professor · Matrícula)]
-  D --> E
+  A[Login ou cadastro] --> B{JWT do aluno}
+  B --> C[Painel do aluno]
+  C --> D[(MySQL<br/>Aluno · Matrícula · Pagamento)]
 ```
 
-- **Aluno:** vê cada modalidade em um cartão com professor, período, barra de progresso e
-  quantos dias faltam. Pode remover uma turma ou iniciar um novo plano escolhendo modalidade,
-  professor e duração (1, 3, 6 ou 12 meses).
-- **Professor:** entra e sai de modalidades com um clique e acompanha os alunos das próprias
-  turmas em uma tabela com filtro.
-- **Regras:** e-mail único entre os dois papéis, uma matrícula ativa por modalidade, o professor
-  precisa lecionar a modalidade da turma e ninguém é excluído com matrícula vinculada.
+- **Minhas modalidades:** cada plano em um cartão com modalidade, período, barra de progresso,
+  quantos dias faltam e quantas mensalidades existem nele.
+- **Iniciar novo plano:** modalidade → duração (1, 3, 6 ou 12 meses) → data de início.
+- **Minhas mensalidades:** tabela com vencimento, valor, forma de pagamento, status e data de
+  pagamento. O aluno registra novas mensalidades, marca como pagas e exclui as que lançou errado.
+- **Regras:** e-mail único, uma matrícula ativa por modalidade, e cada aluno só enxerga e altera
+  as próprias matrículas e mensalidades (o dono vem do token, não do corpo da requisição).
 
 ## Tecnologias
 
@@ -106,23 +104,27 @@ As duas APIs compartilham o mesmo banco e podem rodar ao mesmo tempo, cada uma n
 
 ## Contas de teste
 
-| Papel | E-mail | Senha |
+| Aluno | E-mail | Senha |
 | --- | --- | --- |
-| Aluna | `ana@academia.com` | `Senha@123` |
-| Professor | `carlos@academia.com` | `Senha@123` |
+| Ana Souza | `ana@academia.com` | `Senha@123` |
+| Bruno Lima | `bruno@academia.com` | `Senha@123` |
 
-O seed também cria Bruno Lima (aluno) e as professoras Fernanda Alves e Rafael Tanaka.
+O seed traz a Ana com 3 matrículas (2 ativas e 1 concluída) e 5 mensalidades, e o Bruno com
+1 matrícula e 2 mensalidades.
 
 ## Testes
 
-A suíte [`_tests/test_academia_v2.mjs`](_tests/test_academia_v2.mjs) cobre login, cadastro em
-duas etapas, permissões por papel, regras de matrícula e as rotas usadas pelo frontend:
-**88 verificações por API**.
+A suíte [`_tests/test_academia.mjs`](_tests/test_academia.mjs) cobre o frontend servido, as rotas
+públicas, o login e o cadastro, as regras de matrícula, o CRUD de pagamentos com as permissões por
+dono e o `ON DELETE CASCADE` entre matrícula e mensalidades:
+**92 verificações por API**.
 
 ```bash
-node _tests/test_academia_v2.mjs http://127.0.0.1:8080   # Node
-node _tests/test_academia_v2.mjs http://127.0.0.1:8081   # Flask
+node _tests/test_academia.mjs http://127.0.0.1:8080   # Node
+node _tests/test_academia.mjs http://127.0.0.1:8081   # Flask
 ```
+
+O teste cria dados temporários e **apaga tudo no final**, então o banco volta ao seed.
 
 ## Estrutura
 

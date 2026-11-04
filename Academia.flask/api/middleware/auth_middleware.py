@@ -27,18 +27,13 @@ class AuthMiddleware:
 
     def validate_registrar_body(self, f):
         """
-        Corpo esperado (2ª tela do cadastro):
-        { "tipo": "aluno"|"professor", "nome": "...", "email": "...", "senha": "..." }
+        Corpo esperado (cadastro):
+        { "nome": "...", "email": "...", "senha": "..." }
         """
         @wraps(f)
         def decorated_function(*args, **kwargs):
             print("🔷 AuthMiddleware.validate_registrar_body()")
             body = request.get_json(silent=True) or {}
-
-            if not body.get("tipo"):
-                raise ErrorResponse(400, "Erro na validação de dados", {
-                    "message": "Escolha se o cadastro é de 'aluno' ou 'professor'!"
-                })
 
             if not body.get("nome") or str(body.get("nome")).strip() == "":
                 raise ErrorResponse(400, "Erro na validação de dados", {

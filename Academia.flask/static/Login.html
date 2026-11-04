@@ -10,7 +10,7 @@
 
 <body>
   <main class="auth">
-    <section class="card auth__card auth__card--wide">
+    <section class="card auth__card">
       <div class="brand">
         <span class="brand__mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -18,7 +18,7 @@
           </svg>
         </span>
         <h1 class="brand__title">Academia do Alemão</h1>
-        <p class="brand__subtitle">Alunos, professores e modalidades</p>
+        <p class="brand__subtitle">Matrículas, planos e mensalidades</p>
       </div>
 
       <!-- ------------------------------ ENTRAR ------------------------------ -->
@@ -39,80 +39,37 @@
       </form>
 
       <!-- --------------------------- CRIAR CONTA ---------------------------- -->
-      <div class="stack" id="formCadastro" hidden>
-        <ol class="steps" aria-label="Etapas do cadastro">
-          <li class="step is-active" id="marcadorEtapa1"><span>1</span> Quem é você</li>
-          <li class="step" id="marcadorEtapa2"><span>2</span> Seus dados</li>
-        </ol>
+      <form class="stack" id="formCadastro" hidden>
+        <label class="field">
+          <span class="field__label">Nome</span>
+          <input class="input" id="txtNome" type="text" placeholder="Digite seu nome completo" maxlength="128" />
+        </label>
 
-        <!-- Etapa 1: nome + tipo de cadastro -->
-        <div class="stack" id="etapa1">
-          <label class="field">
-            <span class="field__label">Nome</span>
-            <input class="input" id="txtNome" type="text" placeholder="Digite seu nome completo" maxlength="128" />
-          </label>
+        <label class="field">
+          <span class="field__label">E-mail</span>
+          <input class="input" id="txtEmailCadastro" type="email" placeholder="voce@email.com" maxlength="64" />
+        </label>
 
-          <fieldset class="fieldset">
-            <legend class="field__label">Você quer se cadastrar como?</legend>
+        <label class="field">
+          <span class="field__label">Senha</span>
+          <input class="input" id="txtSenhaCadastro" type="password" placeholder="Senha@123" />
+        </label>
 
-            <div class="role-grid">
-              <label class="role-card">
-                <input type="radio" name="tipoCadastro" value="aluno" />
-                <span class="role-card__title">Aluno</span>
-                <span class="role-card__text">Entrar em modalidades e acompanhar seus planos</span>
-              </label>
+        <label class="field">
+          <span class="field__label">Confirmar senha</span>
+          <input class="input" id="txtSenhaConfirmar" type="password" placeholder="Repita a senha" />
+        </label>
 
-              <label class="role-card">
-                <input type="radio" name="tipoCadastro" value="professor" />
-                <span class="role-card__title">Professor</span>
-                <span class="role-card__text">Lecionar modalidades e acompanhar seus alunos</span>
-              </label>
-            </div>
-          </fieldset>
+        <p class="hint">Mínimo 6 caracteres, com 1 letra maiúscula, 1 número e 1 caractere especial.</p>
 
-          <button class="btn btn--primary btn--block" id="btnEtapa1" type="button">Continuar</button>
-          <p class="hint" id="divRespostaEtapa1" role="status"></p>
-        </div>
+        <button class="btn btn--primary btn--block" id="btnCriarConta" type="submit">Criar conta</button>
 
-        <!-- Etapa 2: e-mail, senha e modalidades (professor) -->
-        <div class="stack" id="etapa2" hidden>
-          <label class="field">
-            <span class="field__label">E-mail</span>
-            <input class="input" id="txtEmailCadastro" type="email" placeholder="voce@email.com" maxlength="64" />
-          </label>
-
-          <label class="field">
-            <span class="field__label">Senha</span>
-            <input class="input" id="txtSenhaCadastro" type="password" placeholder="Senha@123" />
-          </label>
-
-          <label class="field">
-            <span class="field__label">Confirmar senha</span>
-            <input class="input" id="txtSenhaConfirmar" type="password" placeholder="Repita a senha" />
-          </label>
-
-          <p class="hint">Mínimo 6 caracteres, com 1 letra maiúscula, 1 número e 1 caractere especial.</p>
-
-          <fieldset class="fieldset" id="blocoModalidades" hidden>
-            <legend class="field__label">Quais modalidades você quer lecionar?</legend>
-            <div class="check-grid" id="checkModalidades"></div>
-            <p class="hint">Pode marcar mais de uma — e mudar depois no painel.</p>
-          </fieldset>
-
-          <div class="panel__actions">
-            <button class="btn btn--ghost" id="btnVoltarEtapa" type="button">Voltar</button>
-            <button class="btn btn--primary" id="btnCriarConta" type="button">Criar conta</button>
-          </div>
-
-          <p class="hint" id="divRespostaCadastro" role="status"></p>
-        </div>
-      </div>
+        <p class="hint" id="divRespostaCadastro" role="status"></p>
+      </form>
 
       <!-- ------------------------------ RODAPÉ ------------------------------ -->
       <div class="auth__foot">
-        <p class="hint" id="dicaDemo">
-          Aluno: ana@academia.com · Professor: carlos@academia.com · Senha@123
-        </p>
+        <p class="hint" id="dicaDemo">Conta de teste: ana@academia.com · Senha@123</p>
         <p class="hint">
           <span id="rodapeTexto">Ainda não tem conta?</span>
           <button class="link" id="btnAlternar" type="button">Criar conta</button>
@@ -124,12 +81,8 @@
   <script type="module">
     import ApiService from "./ApiService.js";
 
-    const MODALIDADES_PADRAO = ["Musculação", "Cross Fit", "Muay Thai", "Karatê", "Boxe"];
-
     const formLogin = document.getElementById("formLogin");
     const formCadastro = document.getElementById("formCadastro");
-    const etapa1 = document.getElementById("etapa1");
-    const etapa2 = document.getElementById("etapa2");
 
     const txtEmail = document.getElementById("txtEmail");
     const txtSenha = document.getElementById("txtSenha");
@@ -140,15 +93,8 @@
     const txtEmailCadastro = document.getElementById("txtEmailCadastro");
     const txtSenhaCadastro = document.getElementById("txtSenhaCadastro");
     const txtSenhaConfirmar = document.getElementById("txtSenhaConfirmar");
-    const divRespostaEtapa1 = document.getElementById("divRespostaEtapa1");
     const divRespostaCadastro = document.getElementById("divRespostaCadastro");
-    const btnEtapa1 = document.getElementById("btnEtapa1");
-    const btnVoltarEtapa = document.getElementById("btnVoltarEtapa");
     const btnCriarConta = document.getElementById("btnCriarConta");
-    const blocoModalidades = document.getElementById("blocoModalidades");
-    const checkModalidades = document.getElementById("checkModalidades");
-    const marcadorEtapa1 = document.getElementById("marcadorEtapa1");
-    const marcadorEtapa2 = document.getElementById("marcadorEtapa2");
 
     const btnAlternar = document.getElementById("btnAlternar");
     const rodapeTexto = document.getElementById("rodapeTexto");
@@ -159,38 +105,9 @@
     const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const REGEX_ESPECIAL = /[!@#$%^&*(),.?":{}|<>_\-+]/;
 
-    let tipoEscolhido = null;
-
     function mensagem(elemento, texto, tipo) {
       elemento.textContent = texto ?? "";
       elemento.className = tipo === "erro" ? "hint hint--error" : tipo === "ok" ? "hint hint--ok" : "hint";
-    }
-
-    /* ---------------------- modalidades do professor ---------------------- */
-
-    function montarCheckboxes(nomes) {
-      checkModalidades.replaceChildren();
-
-      for (const nome of nomes) {
-        const rotulo = document.createElement("label");
-        rotulo.className = "check";
-
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.value = nome;
-
-        const texto = document.createElement("span");
-        texto.textContent = nome;
-
-        rotulo.append(input, texto);
-        checkModalidades.appendChild(rotulo);
-      }
-    }
-
-    async function carregarModalidades() {
-      const resposta = await api.simpleGet("/api/v1/modalidades");
-      const nomes = resposta?.data?.modalidades?.map((m) => m.nome) ?? [];
-      montarCheckboxes(nomes.length ? nomes : MODALIDADES_PADRAO);
     }
 
     /* ------------------------- troca entre as telas ------------------------ */
@@ -202,8 +119,6 @@
       rodapeTexto.textContent = "Ainda não tem conta?";
       btnAlternar.textContent = "Criar conta";
       mensagem(divRespostaCadastro, "");
-      mensagem(divRespostaEtapa1, "");
-      mostrarEtapa(1);
       txtEmail.focus();
     }
 
@@ -214,15 +129,7 @@
       rodapeTexto.textContent = "Já tem uma conta?";
       btnAlternar.textContent = "Entrar";
       mensagem(divResposta, "");
-      mostrarEtapa(1);
       txtNome.focus();
-    }
-
-    function mostrarEtapa(numero) {
-      etapa1.hidden = numero !== 1;
-      etapa2.hidden = numero !== 2;
-      marcadorEtapa1.classList.toggle("is-active", numero === 1);
-      marcadorEtapa2.classList.toggle("is-active", numero === 2);
     }
 
     btnAlternar.addEventListener("click", () => {
@@ -259,40 +166,17 @@
       btnEntrar.textContent = "Entrar";
     });
 
-    /* --------------------------- etapa 1 -> 2 ------------------------------ */
-
-    btnEtapa1.addEventListener("click", () => {
-      const nome = txtNome.value.trim();
-      const marcado = document.querySelector("input[name='tipoCadastro']:checked");
-
-      if (nome.length < 3) return mensagem(divRespostaEtapa1, "O nome deve ter pelo menos 3 caracteres.", "erro");
-      if (!marcado) return mensagem(divRespostaEtapa1, "Escolha se você é aluno ou professor.", "erro");
-
-      tipoEscolhido = marcado.value;
-      mensagem(divRespostaEtapa1, "");
-      mensagem(divRespostaCadastro, "");
-
-      // O professor escolhe as modalidades já no cadastro.
-      blocoModalidades.hidden = tipoEscolhido !== "professor";
-
-      mostrarEtapa(2);
-      txtEmailCadastro.focus();
-    });
-
-    btnVoltarEtapa.addEventListener("click", () => {
-      mensagem(divRespostaCadastro, "");
-      mostrarEtapa(1);
-    });
-
     /* ----------------------------- criar conta ---------------------------- */
 
-    btnCriarConta.addEventListener("click", async () => {
+    formCadastro.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+
       const nome = txtNome.value.trim();
       const email = txtEmailCadastro.value.trim().toLowerCase();
       const senha = txtSenhaCadastro.value;
       const confirmar = txtSenhaConfirmar.value;
 
-      if (!tipoEscolhido) return mensagem(divRespostaCadastro, "Volte e escolha o tipo de cadastro.", "erro");
+      if (nome.length < 3) return mensagem(divRespostaCadastro, "O nome deve ter pelo menos 3 caracteres.", "erro");
       if (!REGEX_EMAIL.test(email)) return mensagem(divRespostaCadastro, "Informe um e-mail válido.", "erro");
       if (senha.length < 6) return mensagem(divRespostaCadastro, "A senha deve ter pelo menos 6 caracteres.", "erro");
       if (!/[A-Z]/.test(senha)) return mensagem(divRespostaCadastro, "A senha deve ter pelo menos uma letra maiúscula.", "erro");
@@ -300,18 +184,11 @@
       if (!REGEX_ESPECIAL.test(senha)) return mensagem(divRespostaCadastro, "A senha deve ter pelo menos um caractere especial.", "erro");
       if (senha !== confirmar) return mensagem(divRespostaCadastro, "As senhas não conferem.", "erro");
 
-      const modalidades = tipoEscolhido === "professor"
-        ? [...checkModalidades.querySelectorAll("input:checked")].map((input) => input.value)
-        : undefined;
-
       btnCriarConta.disabled = true;
       btnCriarConta.textContent = "Criando conta...";
       mensagem(divRespostaCadastro, "");
 
-      const corpo = { tipo: tipoEscolhido, nome, email, senha };
-      if (modalidades) corpo.modalidades = modalidades;
-
-      const resposta = await api.post("/api/v1/auth/registrar", corpo);
+      const resposta = await api.post("/api/v1/auth/registrar", { nome, email, senha });
 
       if (resposta.success !== true) {
         mensagem(divRespostaCadastro, resposta.error?.message || resposta.message || "Não foi possível criar a conta.", "erro");
@@ -336,8 +213,6 @@
         localStorage.removeItem("userData");
       }
     }
-
-    carregarModalidades();
   </script>
 </body>
 

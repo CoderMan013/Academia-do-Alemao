@@ -42,10 +42,10 @@ class MeuTokenJWT:
         """
         Gera um token JWT assinado com os claims fornecidos.
 
-        :param claims: dict com informações do usuário {email, role, name, idUsuario, idAluno?, idProfessor?}
+        :param claims: dict com informações do usuário {email, role, name, idUsuario, idAluno}
         :return: string (JWT)
         """
-        id_usuario = claims.get("idUsuario") or claims.get("idAluno") or claims.get("idProfessor")
+        id_usuario = claims.get("idUsuario") or claims.get("idAluno")
         headers = {
             "alg": self.__alg,
             "typ": self.__type,
@@ -66,7 +66,6 @@ class MeuTokenJWT:
             "name": claims.get("name"),
             "idUsuario": id_usuario,
             "idAluno": claims.get("idAluno"),
-            "idProfessor": claims.get("idProfessor"),
         }
 
         return jwt.encode(payload, self.__key, algorithm=self.__alg, headers=headers)

@@ -12,7 +12,7 @@ class AuthControl:
         self.__auth_service = auth_service
 
     def login(self):
-        """POST /api/v1/auth/login -> autentica aluno ou professor"""
+        """POST /api/v1/auth/login -> autentica o aluno"""
         print("🔵 AuthControl.login()")
 
         resultado = self.__auth_service.login(request.json)

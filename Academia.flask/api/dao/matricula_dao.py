@@ -4,8 +4,8 @@ from api.model.matricula import Matricula
 """
 DAO da tabela Matricula.
 
-Como Matricula é a tabela do meio, as consultas de leitura usam JOIN
-para devolver o aluno e o professor já aninhados no objeto.
+As consultas de leitura usam JOIN com Aluno para devolver o aluno
+já aninhado no objeto.
 """
 class MatriculaDAO:
     def __init__(self, database_dependency):
@@ -16,15 +16,14 @@ class MatriculaDAO:
         print("🟢 MatriculaDAO.create()")
 
         SQL = """
-            INSERT INTO Matricula (dataInicio, dataFim, status, modalidade, Aluno_idAluno, Professor_idProfessor)
-            VALUES (%s, %s, %s, %s, %s, %s);"""
+            INSERT INTO Matricula (modalidade, dataInicio, dataFim, status, Aluno_idAluno)
+            VALUES (%s, %s, %s, %s, %s);"""
         params = (
+            objMatricula.modalidade,
             objMatricula.dataInicio,
             objMatricula.dataFim,
             objMatricula.status,
-            objMatricula.modalidade,
             objMatricula.aluno.idAluno,
-            objMatricula.professor.idProfessor,
         )
 
         with self.__database.get_connection() as conn:
@@ -54,16 +53,14 @@ class MatriculaDAO:
 
         SQL = """
             UPDATE Matricula
-            SET dataInicio = %s, dataFim = %s, status = %s, modalidade = %s,
-                Aluno_idAluno = %s, Professor_idProfessor = %s
+            SET modalidade = %s, dataInicio = %s, dataFim = %s, status = %s, Aluno_idAluno = %s
             WHERE idMatricula = %s;"""
         params = (
+            objMatricula.modalidade,
             objMatricula.dataInicio,
             objMatricula.dataFim,
             objMatricula.status,
-            objMatricula.modalidade,
             objMatricula.aluno.idAluno,
-            objMatricula.professor.idProfessor,
             objMatricula.idMatricula,
         )
 
@@ -79,12 +76,10 @@ class MatriculaDAO:
         print("🟢 MatriculaDAO.findAll()")
 
         SQL = """
-            SELECT m.idMatricula, m.dataInicio, m.dataFim, m.status, m.modalidade,
-                   a.idAluno, a.nomeAluno, a.email AS emailAluno,
-                   p.idProfessor, p.nomeProfessor, p.email AS emailProfessor
+            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+                   a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
-            JOIN Professor p ON p.idProfessor = m.Professor_idProfessor
             ORDER BY m.idMatricula;"""
 
         with self.__database.get_connection() as conn:
@@ -103,35 +98,23 @@ class MatriculaDAO:
         print("🟢 MatriculaDAO.findByAluno()")
         return self.findByField("Aluno_idAluno", idAluno)
 
-    def findByProfessor(self, idProfessor: int) -> list[dict]:
-        print("🟢 MatriculaDAO.findByProfessor()")
-        return self.findByField("Professor_idProfessor", idProfessor)
-
     def findByField(self, field: str, value) -> list[dict]:
         """
-        :param field: idMatricula | status | modalidade | Aluno_idAluno | Professor_idProfessor
+        :param field: idMatricula | status | modalidade | Aluno_idAluno
         :param value: valor procurado
         :return: list[dict]
         """
         print(f"🟢 MatriculaDAO.findByField() - Campo: {field}, Valor: {value}")
 
-        allowed_fields = [
-            "idMatricula",
-            "status",
-            "modalidade",
-            "Aluno_idAluno",
-            "Professor_idProfessor",
-        ]
+        allowed_fields = ["idMatricula", "status", "modalidade", "Aluno_idAluno"]
         if field not in allowed_fields:
             raise ValueError(f"Campo inválido para busca: {field}")
 
         SQL = f"""
-            SELECT m.idMatricula, m.dataInicio, m.dataFim, m.status, m.modalidade,
-                   a.idAluno, a.nomeAluno, a.email AS emailAluno,
-                   p.idProfessor, p.nomeProfessor, p.email AS emailProfessor
+            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+                   a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
-            JOIN Professor p ON p.idProfessor = m.Professor_idProfessor
             WHERE m.{field} = %s
             ORDER BY m.idMatricula;"""
 
@@ -148,40 +131,6 @@ class MatriculaDAO:
 
         SQL = "SELECT COUNT(*) AS total FROM Matricula WHERE Aluno_idAluno = %s"
         params = [idAluno]
-
-        if status:
-            SQL += " AND status = %s"
-            params.append(status)
-
-        with self.__database.get_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                cursor.execute(SQL, tuple(params))
-                resultado = cursor.fetchall()
-
-        return int(resultado[0]["total"])
-
-    def countByProfessor(self, idProfessor: int) -> int:
-        """Quantidade de matrículas de um professor (impede excluir professor em uso)."""
-        print("🟢 MatriculaDAO.countByProfessor()")
-
-        SQL = "SELECT COUNT(*) AS total FROM Matricula WHERE Professor_idProfessor = %s;"
-
-        with self.__database.get_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                cursor.execute(SQL, (idProfessor,))
-                resultado = cursor.fetchall()
-
-        return int(resultado[0]["total"])
-
-    def countByProfessorModalidade(self, idProfessor: int, modalidade: str, status: str | None = None) -> int:
-        """Matrículas de um professor em uma modalidade."""
-        print("🟢 MatriculaDAO.countByProfessorModalidade()")
-
-        SQL = """
-            SELECT COUNT(*) AS total
-            FROM Matricula
-            WHERE Professor_idProfessor = %s AND modalidade = %s"""
-        params = [idProfessor, modalidade]
 
         if status:
             SQL += " AND status = %s"
@@ -222,21 +171,16 @@ class MatriculaDAO:
 
     @staticmethod
     def montar_objeto(linha: dict) -> dict:
-        """Monta o objeto aninhado (aluno + professor) a partir da linha do JOIN."""
+        """Monta o objeto aninhado (aluno) a partir da linha do JOIN."""
         return {
             "idMatricula": int(linha["idMatricula"]),
+            "modalidade": linha["modalidade"],
             "dataInicio": Matricula.normalizar_data(linha["dataInicio"]),
             "dataFim": Matricula.normalizar_data(linha["dataFim"]),
             "status": linha["status"],
-            "modalidade": linha["modalidade"],
             "aluno": {
                 "idAluno": int(linha["idAluno"]),
                 "nomeAluno": linha["nomeAluno"],
                 "email": linha["emailAluno"],
-            },
-            "professor": {
-                "idProfessor": int(linha["idProfessor"]),
-                "nomeProfessor": linha["nomeProfessor"],
-                "email": linha["emailProfessor"],
             },
         }

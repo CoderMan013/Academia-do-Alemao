@@ -38,6 +38,6 @@
   </g>
 
   <text x="800" y="228" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="86" font-weight="700" letter-spacing="-2" fill="url(#titulo)">Academia do Alemão</text>
-  <text x="800" y="282" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="22" letter-spacing="5" fill="#9a9a9a">ALUNO · PROFESSOR · MODALIDADES</text>
+  <text x="800" y="282" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="22" letter-spacing="5" fill="#9a9a9a">ALUNO · MATRÍCULA · PAGAMENTO</text>
   <rect x="690" y="318" width="220" height="1" fill="#ffffff" fill-opacity="0.25"/>
 </svg>

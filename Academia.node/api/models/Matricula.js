@@ -1,13 +1,11 @@
 const Aluno = require("./Aluno");
-const Professor = require("./Professor");
 const { validarModalidade } = require("../domain/Modalidades");
 
 /**
  * Entidade Matricula: a tabela do meio do projeto.
  *
- * Relaciona Aluno e Professor (duas chaves estrangeiras) e guarda a
- * modalidade cursada e o período do plano. A modalidade é uma das cinco
- * oferecidas pela academia (validada em domain/Modalidades).
+ * Relaciona o Aluno à modalidade cursada e guarda o período do plano.
+ * Cada matrícula pode ter vários pagamentos (mensalidades).
  */
 module.exports = class Matricula {
     #idMatricula;
@@ -16,7 +14,6 @@ module.exports = class Matricula {
     #status;
     #modalidade;
     #aluno;
-    #professor;
 
     /** Converte Date/string para o formato YYYY-MM-DD. */
     static normalizarData(valor) {
@@ -109,17 +106,5 @@ module.exports = class Matricula {
             throw new Error("aluno deve ser uma instância válida de Aluno.");
         }
         this.#aluno = valor;
-    }
-
-    get professor() {
-        return this.#professor;
-    }
-
-    /** @param {Professor} valor */
-    set professor(valor) {
-        if (!(valor instanceof Professor)) {
-            throw new Error("professor deve ser uma instância válida de Professor.");
-        }
-        this.#professor = valor;
     }
 };

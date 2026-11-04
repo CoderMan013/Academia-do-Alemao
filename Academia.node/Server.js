@@ -4,40 +4,39 @@ const cors = require("cors");
 
 const ErrorResponse = require("./api/utils/ErrorResponse");
 const Logger = require("./api/utils/Logger");
-const { MODALIDADES } = require("./api/domain/Modalidades");
+const { MODALIDADES, DURACOES } = require("./api/domain/Modalidades");
 
 // Middlewares globais
 const JwtMiddleware = require("./api/middleware/JwtMiddleware");
-const RoleMiddleware = require("./api/middleware/RoleMiddleware");
 
 // Middlewares de validação de cada entidade
 const AuthMiddleware = require("./api/middleware/AuthMiddleware");
 const AlunoMiddleware = require("./api/middleware/AlunoMiddleware");
-const ProfessorMiddleware = require("./api/middleware/ProfessorMiddleware");
 const MatriculaMiddleware = require("./api/middleware/MatriculaMiddleware");
+const PagamentoMiddleware = require("./api/middleware/PagamentoMiddleware");
 
 // Controllers
 const AuthController = require("./api/controllers/AuthController");
 const AlunoController = require("./api/controllers/AlunoController");
-const ProfessorController = require("./api/controllers/ProfessorController");
 const MatriculaController = require("./api/controllers/MatriculaController");
+const PagamentoController = require("./api/controllers/PagamentoController");
 
 // Services
 const AuthService = require("./api/services/AuthService");
 const AlunoService = require("./api/services/AlunoService");
-const ProfessorService = require("./api/services/ProfessorService");
 const MatriculaService = require("./api/services/MatriculaService");
+const PagamentoService = require("./api/services/PagamentoService");
 
 // DAOs
 const AlunoDAO = require("./api/dao/AlunoDAO");
-const ProfessorDAO = require("./api/dao/ProfessorDAO");
 const MatriculaDAO = require("./api/dao/MatriculaDAO");
+const PagamentoDAO = require("./api/dao/PagamentoDAO");
 
 // Routers
 const AuthRouter = require("./api/routes/AuthRouter");
 const AlunoRouter = require("./api/routes/AlunoRouter");
-const ProfessorRouter = require("./api/routes/ProfessorRouter");
 const MatriculaRouter = require("./api/routes/MatriculaRouter");
+const PagamentoRouter = require("./api/routes/PagamentoRouter");
 
 // Banco de dados (pool único de conexões MySQL)
 const MysqlDatabase = require("./api/database/MysqlDatabase");
@@ -48,7 +47,7 @@ const MysqlDatabase = require("./api/database/MysqlDatabase");
  * Monta a arquitetura em camadas pedida em aula:
  * Router -> Middleware -> Controller -> Service -> DAO -> Banco
  *
- * Entidades: Aluno, Professor (no lugar do antigo Plano) e Matricula.
+ * Entidades: Aluno, Matricula e Pagamento.
  */
 module.exports = class Server {
     // 🔒 Atributos privados (encapsulamento)
@@ -57,21 +56,20 @@ module.exports = class Server {
     #database;
 
     #jwtMiddleware;
-    #roleMiddleware;
 
     #alunoDAO;
-    #professorDAO;
     #matriculaDAO;
+    #pagamentoDAO;
 
     #authService;
     #alunoService;
-    #professorService;
     #matriculaService;
+    #pagamentoService;
 
     #authController;
     #alunoController;
-    #professorController;
     #matriculaController;
+    #pagamentoController;
 
     constructor(porta) {
         console.log("⬆️  Server.constructor()");
@@ -90,7 +88,6 @@ module.exports = class Server {
         this.#app.use(cors({ origin: "*" }));
 
         this.#jwtMiddleware = new JwtMiddleware();
-        this.#roleMiddleware = new RoleMiddleware();
 
         // 🔹 Pool global de conexões MySQL (configuração do XAMPP)
         this.#database = new MysqlDatabase({
@@ -108,41 +105,32 @@ module.exports = class Server {
 
         // 🔹 DAOs compartilhados entre os services (injeção de dependência)
         this.#alunoDAO = new AlunoDAO(this.#database);
-        this.#professorDAO = new ProfessorDAO(this.#database);
         this.#matriculaDAO = new MatriculaDAO(this.#database);
+        this.#pagamentoDAO = new PagamentoDAO(this.#database);
 
         // 🔹 Services
         this.#alunoService = new AlunoService(this.#alunoDAO, this.#matriculaDAO);
-        this.#professorService = new ProfessorService(this.#professorDAO, this.#matriculaDAO);
-        this.#matriculaService = new MatriculaService(
-            this.#matriculaDAO,
-            this.#alunoDAO,
-            this.#professorDAO
-        );
-        this.#authService = new AuthService(
-            this.#alunoDAO,
-            this.#professorDAO,
-            this.#alunoService,
-            this.#professorService
-        );
+        this.#matriculaService = new MatriculaService(this.#matriculaDAO, this.#alunoDAO);
+        this.#pagamentoService = new PagamentoService(this.#pagamentoDAO, this.#matriculaDAO);
+        this.#authService = new AuthService(this.#alunoDAO, this.#alunoService);
 
         // 🔹 Controllers
         this.#authController = new AuthController(this.#authService);
         this.#alunoController = new AlunoController(this.#alunoService);
-        this.#professorController = new ProfessorController(this.#professorService);
         this.#matriculaController = new MatriculaController(this.#matriculaService);
+        this.#pagamentoController = new PagamentoController(this.#pagamentoService);
 
         this.beforeRouting();
         this.setupAuth();
         this.setupAluno();
-        this.setupProfessor();
         this.setupMatricula();
+        this.setupPagamento();
         this.setupModalidades();
         this.setupErrorMiddleware();
     }
 
     /**
-     * Módulo Auth: login e cadastro dos dois tipos de usuário em /api/v1/auth
+     * Módulo Auth: login e cadastro do aluno em /api/v1/auth
      */
     setupAuth = () => {
         console.log("⬆️  Server.setupAuth()");
@@ -172,30 +160,13 @@ module.exports = class Server {
     }
 
     /**
-     * Módulo Professor: CRUD + /me em /api/v1/professores
-     */
-    setupProfessor = () => {
-        console.log("⬆️  Server.setupProfessor()");
-
-        const router = new ProfessorRouter(
-            this.#jwtMiddleware,
-            this.#roleMiddleware,
-            new ProfessorMiddleware(),
-            this.#professorController
-        );
-
-        this.#app.use("/api/v1/professores", router.createRoutes());
-    }
-
-    /**
-     * Módulo Matrícula: CRUD + /minhas + /meus-alunos em /api/v1/matriculas
+     * Módulo Matrícula: CRUD + /minhas em /api/v1/matriculas
      */
     setupMatricula = () => {
         console.log("⬆️  Server.setupMatricula()");
 
         const router = new MatriculaRouter(
             this.#jwtMiddleware,
-            this.#roleMiddleware,
             new MatriculaMiddleware(),
             this.#matriculaController
         );
@@ -204,34 +175,36 @@ module.exports = class Server {
     }
 
     /**
-     * Lista as modalidades e os professores que as lecionam.
-     * Rota pública: é usada também na tela de cadastro do professor.
+     * Módulo Pagamento: CRUD + /minhas + /matricula/:id em /api/v1/pagamentos
+     */
+    setupPagamento = () => {
+        console.log("⬆️  Server.setupPagamento()");
+
+        const router = new PagamentoRouter(
+            this.#jwtMiddleware,
+            new PagamentoMiddleware(),
+            this.#pagamentoController
+        );
+
+        this.#app.use("/api/v1/pagamentos", router.createRoutes());
+    }
+
+    /**
+     * Lista as modalidades e as durações de plano aceitas.
+     * Rota pública: é usada no painel do aluno.
      */
     setupModalidades = () => {
         console.log("⬆️  Server.setupModalidades()");
 
-        this.#app.get("/api/v1/modalidades", async (request, response, next) => {
-            try {
-                const professores = await this.#professorService.findAll();
-
-                const modalidades = MODALIDADES.map((nome) => ({
-                    nome,
-                    professores: professores
-                        .filter((professor) => professor.modalidades.includes(nome))
-                        .map((professor) => ({
-                            idProfessor: professor.idProfessor,
-                            nomeProfessor: professor.nomeProfessor
-                        }))
-                }));
-
-                return response.status(200).send({
-                    success: true,
-                    message: "Busca realizada com sucesso",
-                    data: { modalidades }
-                });
-            } catch (error) {
-                next(error);
-            }
+        this.#app.get("/api/v1/modalidades", (request, response) => {
+            return response.status(200).send({
+                success: true,
+                message: "Busca realizada com sucesso",
+                data: {
+                    modalidades: MODALIDADES.map((nome) => ({ nome })),
+                    duracoes: DURACOES
+                }
+            });
         });
     }
 

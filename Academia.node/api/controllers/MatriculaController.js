@@ -1,11 +1,7 @@
 const ErrorResponse = require("../utils/ErrorResponse");
 
 /**
- * Controller (camada de controle HTTP) da entidade Matricula.
- *
- * Usa request.usuarioAutenticado (do JWT) para limitar as ações:
- * - aluno vê e altera apenas as próprias matrículas;
- * - professor vê as matrículas das turmas dele.
+ * Controller (camada HTTP) da entidade Matricula.
  */
 module.exports = class MatriculaController {
     #matriculaService;
@@ -19,16 +15,15 @@ module.exports = class MatriculaController {
     store = async (request, response, next) => {
         console.log("🔵 MatriculaController.store()");
         try {
-            const matriculaBody = request.body.matricula;
-            const resultado = await this.#matriculaService.createMatricula(
-                matriculaBody,
+            const matricula = await this.#matriculaService.createMatricula(
+                request.body.matricula,
                 request.usuarioAutenticado
             );
 
             return response.status(201).send({
                 success: true,
                 message: "Matrícula realizada com sucesso",
-                data: { matriculas: [resultado] }
+                data: { matriculas: [matricula] }
             });
         } catch (error) {
             next(error);
@@ -51,29 +46,12 @@ module.exports = class MatriculaController {
         }
     };
 
-    /** GET /api/v1/matriculas/minhas (aluno) */
+    /** GET /api/v1/matriculas/minhas */
     minhas = async (request, response, next) => {
         console.log("🔵 MatriculaController.minhas()");
         try {
             const idAluno = request.usuarioAutenticado?.idAluno;
             const matriculas = await this.#matriculaService.findMinhas(idAluno);
-
-            return response.status(200).send({
-                success: true,
-                message: "Busca realizada com sucesso",
-                data: { matriculas }
-            });
-        } catch (error) {
-            next(error);
-        }
-    };
-
-    /** GET /api/v1/matriculas/meus-alunos (professor) */
-    meusAlunos = async (request, response, next) => {
-        console.log("🔵 MatriculaController.meusAlunos()");
-        try {
-            const idProfessor = request.usuarioAutenticado?.idProfessor;
-            const matriculas = await this.#matriculaService.findMeusAlunos(idProfessor);
 
             return response.status(200).send({
                 success: true,
@@ -113,21 +91,17 @@ module.exports = class MatriculaController {
         console.log("🔵 MatriculaController.update()");
         try {
             const idMatricula = request.params.idMatricula;
-            const matriculaBody = request.body.matricula;
-
-            const atualizou = await this.#matriculaService.updateMatricula(
+            const matricula = await this.#matriculaService.updateMatricula(
                 idMatricula,
-                matriculaBody,
+                request.body.matricula,
                 request.usuarioAutenticado
             );
 
-            if (!atualizou) {
+            if (!matricula) {
                 throw new ErrorResponse(404, "Matrícula não encontrada", {
                     message: `Não existe matrícula com id ${idMatricula} para atualização`
                 });
             }
-
-            const matricula = await this.#matriculaService.findById(idMatricula);
 
             return response.status(200).send({
                 success: true,

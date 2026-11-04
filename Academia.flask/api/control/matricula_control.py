@@ -7,9 +7,7 @@ from api.utils.error_response import ErrorResponse
 """
 Classe responsável por controlar os endpoints da API REST para Matricula.
 
-Usa flask.g.usuario (colocado pelo JWT) para limitar as ações:
-- aluno vê e altera apenas as próprias matrículas;
-- professor vê as matrículas das turmas dele.
+Usa flask.g.usuario (colocado pelo JWT) para limitar as ações ao aluno logado.
 """
 class MatriculaControl:
     def __init__(self, matricula_service: MatriculaService):
@@ -61,19 +59,6 @@ class MatriculaControl:
             "data": {"matriculas": matriculas}
         }), 200
 
-    def meus_alunos(self):
-        """GET /api/v1/matriculas/meus-alunos -> matrículas das turmas do professor"""
-        print("🔵 MatriculaControl.meus_alunos()")
-
-        id_professor = self._usuario_autenticado().get("idProfessor")
-        matriculas = self.__matricula_service.findMeusAlunos(id_professor)
-
-        return jsonify({
-            "success": True,
-            "message": "Busca realizada com sucesso",
-            "data": {"matriculas": matriculas}
-        }), 200
-
     def show(self, idMatricula: int):
         """GET /api/v1/matriculas/<idMatricula> -> retorna uma matrícula"""
         print("🔵 MatriculaControl.show()")
@@ -98,20 +83,18 @@ class MatriculaControl:
         print("🔵 MatriculaControl.update()")
 
         json_matricula = request.json.get("matricula")
-        atualizou = self.__matricula_service.updateMatricula(
+        matricula = self.__matricula_service.updateMatricula(
             idMatricula,
             json_matricula,
             self._usuario_autenticado()
         )
 
-        if not atualizou:
+        if not matricula:
             raise ErrorResponse(
                 404,
                 "Matrícula não encontrada",
                 {"message": f"Não existe matrícula com id {idMatricula} para atualização"}
             )
-
-        matricula = self.__matricula_service.findById(idMatricula)
 
         return jsonify({
             "success": True,

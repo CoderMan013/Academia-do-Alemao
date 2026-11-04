@@ -80,11 +80,6 @@ export default class ApiService {
         return await this.#executar("PUT", `${uri}/${id}`, jsonObject);
     }
 
-    /** PUT em uma rota sem id (ex.: /professores/me/modalidades). */
-    async putDireto(uri, jsonObject) {
-        return await this.#executar("PUT", uri, jsonObject);
-    }
-
     async delete(uri, id) {
         return await this.#executar("DELETE", `${uri}/${id}`);
     }

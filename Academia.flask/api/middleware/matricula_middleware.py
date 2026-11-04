@@ -8,8 +8,7 @@ from api.utils.error_response import ErrorResponse
 """
 Middleware para validação de requisições relacionadas à entidade Matricula.
 
-A matrícula precisa da modalidade e do professor; o aluno vem do token
-quando quem está logado é aluno.
+A matrícula precisa da modalidade; o aluno vem do token.
 """
 class MatriculaMiddleware:
 
@@ -21,9 +20,7 @@ class MatriculaMiddleware:
             "modalidade": "Muay Thai",
             "dataInicio": "2026-11-03",    // opcional: hoje
             "duracaoMeses": 3,             // opcional: 3
-            "status": "ativa",             // opcional
-            "aluno": { "idAluno": 1 },     // opcional para aluno logado
-            "professor": { "idProfessor": 1 }
+            "status": "ativa"              // opcional
           }
         }
         """
@@ -38,9 +35,6 @@ class MatriculaMiddleware:
 
             if not matricula.get("modalidade") or str(matricula.get("modalidade")).strip() == "":
                 raise ErrorResponse(400, "Erro na validação de dados", {"message": "O campo 'modalidade' é obrigatório!"})
-
-            if not matricula.get("professor") or not matricula.get("professor", {}).get("idProfessor"):
-                raise ErrorResponse(400, "Erro na validação de dados", {"message": "O campo 'professor.idProfessor' é obrigatório!"})
 
             return f(*args, **kwargs)
         return decorated_function

@@ -3,8 +3,7 @@ const express = require("express");
 /**
  * Rotas da entidade Aluno.
  *
- * Login e cadastro ficam em /api/v1/auth (AuthRouter), porque agora existem
- * dois tipos de usuário (aluno e professor).
+ * Login e cadastro ficam em /api/v1/auth (AuthRouter), separados do CRUD.
  */
 module.exports = class AlunoRouter {
     #jwtMiddleware;

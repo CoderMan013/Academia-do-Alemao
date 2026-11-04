@@ -3,14 +3,13 @@ import datetime
 
 from api.domain.modalidades import validar_modalidade
 from api.model.aluno import Aluno
-from api.model.professor import Professor
 from api.utils.numeros import para_inteiro
 
 """
 Representa a entidade Matricula: a tabela do meio do projeto.
 
-Relaciona Aluno e Professor (duas chaves estrangeiras) e guarda a
-modalidade cursada e o período do plano.
+Relaciona o Aluno à modalidade cursada e guarda o período do plano.
+Cada matrícula pode ter vários pagamentos (mensalidades).
 """
 
 
@@ -22,7 +21,6 @@ class Matricula:
         self.__status = None
         self.__modalidade = None
         self.__aluno = None
-        self.__professor = None
 
     @staticmethod
     def normalizar_data(valor):
@@ -133,16 +131,3 @@ class Matricula:
             raise ValueError("aluno deve ser uma instância válida de Aluno.")
 
         self.__aluno = valor
-
-    @property
-    def professor(self):
-        """Getter para professor."""
-        return self.__professor
-
-    @professor.setter
-    def professor(self, valor):
-        """Regra de domínio: instância válida de Professor."""
-        if not isinstance(valor, Professor):
-            raise ValueError("professor deve ser uma instância válida de Professor.")
-
-        self.__professor = valor

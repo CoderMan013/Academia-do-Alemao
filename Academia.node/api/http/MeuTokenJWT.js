@@ -30,7 +30,7 @@ module.exports = class MeuTokenJWT {
 
     /**
      * Gera o token assinado com os claims informados.
-     * @param {{email: string, role: string, name: string, idUsuario: number, idAluno?: number, idProfessor?: number}} claims
+     * @param {{email: string, role: string, name: string, idUsuario: number, idAluno: number}} claims
      * @returns {string} token JWT
      */
     gerarToken = (claims) => {
@@ -49,9 +49,8 @@ module.exports = class MeuTokenJWT {
             email: claims.email,
             role: claims.role,
             name: claims.name,
-            idUsuario: claims.idUsuario ?? claims.idAluno ?? claims.idProfessor ?? null,
-            idAluno: claims.idAluno ?? null,
-            idProfessor: claims.idProfessor ?? null
+            idUsuario: claims.idUsuario ?? claims.idAluno ?? null,
+            idAluno: claims.idAluno ?? null
         };
 
         return jwt.sign(payload, this.#key, {

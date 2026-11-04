@@ -19,18 +19,12 @@ module.exports = class AuthMiddleware {
     };
 
     /**
-     * Corpo esperado (2ª tela do cadastro):
-     * { "tipo": "aluno"|"professor", "nome": "...", "email": "...", "senha": "..." }
+     * Corpo esperado (cadastro):
+     * { "nome": "...", "email": "...", "senha": "..." }
      */
     validateRegistrarBody = (request, response, next) => {
         console.log("🔷 AuthMiddleware.validateRegistrarBody()");
         const body = request.body;
-
-        if (!body?.tipo) {
-            throw new ErrorResponse(400, "Erro na validação de dados", {
-                message: "Escolha se o cadastro é de 'aluno' ou 'professor'!"
-            });
-        }
 
         if (!body?.nome || String(body.nome).trim() === "") {
             throw new ErrorResponse(400, "Erro na validação de dados", {

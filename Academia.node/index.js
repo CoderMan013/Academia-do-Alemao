@@ -13,7 +13,7 @@ const Server = require("./Server");
         const server = new Server(8080);
         await server.init();
         server.run();
-        console.log("✅ API Node (alunos / professores / modalidades / matriculas) iniciada");
+        console.log("✅ API Node (alunos / modalidades / matriculas / pagamentos) iniciada");
     } catch (error) {
         console.error("❌ Erro ao iniciar o servidor:", error);
     }

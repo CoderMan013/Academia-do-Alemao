@@ -2,20 +2,15 @@ const express = require("express");
 
 /**
  * Rotas da entidade Matricula (todas autenticadas por JWT).
- *
- * As rotas /minhas e /meus-alunos são específicas de cada papel; o CRUD
- * completo continua disponível para consulta e manutenção.
  */
 module.exports = class MatriculaRouter {
     #jwtMiddleware;
-    #roleMiddleware;
     #matriculaMiddleware;
     #matriculaController;
 
-    constructor(jwtMiddlewareDependency, roleMiddlewareDependency, matriculaMiddlewareDependency, matriculaControllerDependency) {
+    constructor(jwtMiddlewareDependency, matriculaMiddlewareDependency, matriculaControllerDependency) {
         console.log("⬆️  MatriculaRouter.constructor()");
         this.#jwtMiddleware = jwtMiddlewareDependency;
-        this.#roleMiddleware = roleMiddlewareDependency;
         this.#matriculaMiddleware = matriculaMiddlewareDependency;
         this.#matriculaController = matriculaControllerDependency;
     }
@@ -23,8 +18,7 @@ module.exports = class MatriculaRouter {
     /**
      * @returns {express.Router}
      *
-     * GET    /api/v1/matriculas/minhas        (aluno)
-     * GET    /api/v1/matriculas/meus-alunos   (professor)
+     * GET    /api/v1/matriculas/minhas
      * POST   /api/v1/matriculas
      * GET    /api/v1/matriculas
      * GET    /api/v1/matriculas/:idMatricula
@@ -37,14 +31,7 @@ module.exports = class MatriculaRouter {
 
         router.get("/minhas",
             this.#jwtMiddleware.validateToken,
-            this.#roleMiddleware.requireRole("aluno"),
             this.#matriculaController.minhas
-        );
-
-        router.get("/meus-alunos",
-            this.#jwtMiddleware.validateToken,
-            this.#roleMiddleware.requireRole("professor"),
-            this.#matriculaController.meusAlunos
         );
 
         router.post("/",

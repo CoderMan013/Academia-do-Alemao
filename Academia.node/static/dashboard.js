@@ -2,19 +2,16 @@ import ApiService from "./ApiService.js";
 
 /* =====================================================================
    Painel da Academia do Alemão
-   - A mesma página serve aluno e professor; o papel vem do token.
-   - Aluno: vê/remove suas matrículas e inicia novos planos.
-   - Professor: escolhe as modalidades que leciona e vê seus alunos.
+   - Só existe o aluno logado.
+   - Aluno: vê/remove suas matrículas, inicia planos novos e cuida
+     das mensalidades (registrar, marcar como paga, excluir).
    ===================================================================== */
 
 const sessao = JSON.parse(localStorage.getItem("userData") ?? "null");
 const token = sessao?.data?.token;
-const tipo = sessao?.data?.tipo;
 const usuario = sessao?.data?.usuario ?? {};
 
-const sessaoValida = Boolean(token) && (tipo === "aluno" || tipo === "professor");
-
-if (!sessaoValida) {
+if (!token) {
     localStorage.removeItem("userData");
     window.location.href = "Login.html";
 }
@@ -24,29 +21,28 @@ const api = new ApiService(token);
 /* ------------------------------ elementos ---------------------------- */
 
 const boasVindas = document.getElementById("boasVindas");
-const badgePapel = document.getElementById("badgePapel");
 const btnSair = document.getElementById("btnSair");
 const btnAtualizar = document.getElementById("btnAtualizar");
 
-const viewAluno = document.getElementById("viewAluno");
 const statsAluno = document.getElementById("statsAluno");
 const minhasMatriculas = document.getElementById("minhasMatriculas");
 const msgAluno = document.getElementById("msgAluno");
 const formNova = document.getElementById("formNova");
 const selModalidade = document.getElementById("selModalidade");
-const selProfessor = document.getElementById("selProfessor");
 const selDuracao = document.getElementById("selDuracao");
 const txtInicio = document.getElementById("txtInicio");
 const btnNova = document.getElementById("btnNova");
 const msgNova = document.getElementById("msgNova");
 
-const viewProfessor = document.getElementById("viewProfessor");
-const statsProfessor = document.getElementById("statsProfessor");
-const chipsModalidades = document.getElementById("chipsModalidades");
-const msgModalidades = document.getElementById("msgModalidades");
-const filtroAlunos = document.getElementById("filtroAlunos");
-const tabelaAlunos = document.getElementById("tabelaAlunos");
-const msgAlunos = document.getElementById("msgAlunos");
+const tabelaPagamentos = document.getElementById("tabelaPagamentos");
+const msgPagamentos = document.getElementById("msgPagamentos");
+const formPagamento = document.getElementById("formPagamento");
+const selMatriculaPagamento = document.getElementById("selMatriculaPagamento");
+const txtValor = document.getElementById("txtValor");
+const txtVencimento = document.getElementById("txtVencimento");
+const selMetodo = document.getElementById("selMetodo");
+const btnPagamento = document.getElementById("btnPagamento");
+const msgNovoPagamento = document.getElementById("msgNovoPagamento");
 
 const modalRemover = document.getElementById("modalRemover");
 const textoRemocao = document.getElementById("textoRemocao");
@@ -58,8 +54,7 @@ const btnConfirmarRemocao = document.getElementById("btnConfirmarRemocao");
 const estado = {
     modalidades: [],
     minhas: [],
-    meusAlunos: [],
-    perfil: null,
+    pagamentos: [],
     remover: null,
     salvando: false
 };
@@ -70,6 +65,10 @@ function formatarData(valor) {
     if (!valor) return "—";
     const [ano, mes, dia] = String(valor).slice(0, 10).split("-");
     return `${dia}/${mes}/${ano}`;
+}
+
+function formatarDinheiro(valor) {
+    return Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function hojeISO() {
@@ -133,7 +132,7 @@ function sair() {
     window.location.href = "Login.html";
 }
 
-/* --------------------------- dados comuns ---------------------------- */
+/* ------------------------------- dados ------------------------------- */
 
 async function carregarModalidades() {
     const resposta = await api.get("/api/v1/modalidades");
@@ -143,17 +142,16 @@ async function carregarModalidades() {
     return estado.modalidades;
 }
 
-/* ============================== ALUNO ================================ */
-
 async function carregarAluno() {
     mensagem(msgAluno, "Carregando…");
 
-    const [matriculas] = await Promise.all([
+    const [matriculas, pagamentos] = await Promise.all([
         api.get("/api/v1/matriculas/minhas"),
+        api.get("/api/v1/pagamentos/minhas"),
         carregarModalidades()
     ]);
 
-    if (matriculas.statusHttp === 401) return sair();
+    if (matriculas.statusHttp === 401 || pagamentos.statusHttp === 401) return sair();
 
     if (!matriculas.success) {
         estado.minhas = [];
@@ -163,23 +161,35 @@ async function carregarAluno() {
         mensagem(msgAluno, "");
     }
 
-    renderStatsAluno();
+    if (!pagamentos.success) {
+        estado.pagamentos = [];
+        mensagem(msgPagamentos, pagamentos.error?.message || pagamentos.message || "Não foi possível carregar suas mensalidades.", "erro");
+    } else {
+        estado.pagamentos = pagamentos.data?.pagamentos ?? [];
+        mensagem(msgPagamentos, "");
+    }
+
+    renderStats();
     renderMinhas();
+    renderPagamentos();
     preencherNovaMatricula();
+    preencherFormPagamento();
 }
 
-function renderStatsAluno() {
+function renderStats() {
     const ativas = estado.minhas.filter((m) => m.status === "ativa");
-    const professores = new Set(ativas.map((m) => m.professor.idProfessor)).size;
-    const prazos = ativas.map((m) => diasRestantes(m.dataFim)).filter((dias) => dias >= 0);
-    const proximo = prazos.length ? Math.min(...prazos) : null;
+    const abertas = estado.pagamentos.filter((p) => p.status !== "pago");
+    const pagas = estado.pagamentos.filter((p) => p.status === "pago");
+    const totalPago = pagas.reduce((soma, p) => soma + Number(p.valor ?? 0), 0);
 
     statsAluno.replaceChildren(
         criarStat(ativas.length, "modalidades ativas"),
-        criarStat(professores, "professores"),
-        criarStat(proximo === null ? "—" : `${proximo}`, "dias até o próximo vencimento")
+        criarStat(abertas.length, "mensalidades em aberto"),
+        criarStat(formatarDinheiro(totalPago), "total já pago")
     );
 }
+
+/* ----------------------------- matrículas ---------------------------- */
 
 function renderMinhas() {
     minhasMatriculas.replaceChildren();
@@ -218,9 +228,13 @@ function criarCartaoMatricula(matricula) {
     titulo.className = "mat-card__title";
     titulo.textContent = matricula.modalidade;
 
-    const professor = document.createElement("p");
-    professor.className = "mat-card__meta";
-    professor.textContent = `Professor(a): ${matricula.professor.nomeProfessor}`;
+    const mensalidades = estado.pagamentos.filter(
+        (p) => p.matricula?.idMatricula === matricula.idMatricula
+    ).length;
+
+    const info = document.createElement("p");
+    info.className = "mat-card__meta";
+    info.textContent = `${mensalidades} mensalidade(s) registrada(s)`;
 
     const periodo = document.createElement("p");
     periodo.className = "mat-card__meta";
@@ -248,26 +262,23 @@ function criarCartaoMatricula(matricula) {
 
     rodape.append(prazo, botao);
 
-    cartao.append(topo, titulo, professor, periodo, barra, rodape);
+    cartao.append(topo, titulo, info, periodo, barra, rodape);
     return cartao;
 }
 
 function preencherNovaMatricula() {
-    const disponiveis = estado.modalidades.filter((modalidade) => modalidade.professores.length > 0);
-
     selModalidade.replaceChildren();
 
-    if (disponiveis.length === 0) {
+    if (estado.modalidades.length === 0) {
         const opcao = document.createElement("option");
         opcao.value = "";
-        opcao.textContent = "Nenhum professor cadastrado ainda";
+        opcao.textContent = "Carregando modalidades…";
         selModalidade.appendChild(opcao);
-        selProfessor.replaceChildren();
         btnNova.disabled = true;
         return;
     }
 
-    for (const modalidade of disponiveis) {
+    for (const modalidade of estado.modalidades) {
         const opcao = document.createElement("option");
         opcao.value = modalidade.nome;
         opcao.textContent = modalidade.nome;
@@ -276,46 +287,23 @@ function preencherNovaMatricula() {
 
     btnNova.disabled = false;
     if (!txtInicio.value) txtInicio.value = hojeISO();
-    preencherProfessores();
-}
-
-function preencherProfessores() {
-    const modalidade = estado.modalidades.find((item) => item.nome === selModalidade.value);
-
-    selProfessor.replaceChildren();
-
-    for (const professor of modalidade?.professores ?? []) {
-        const opcao = document.createElement("option");
-        opcao.value = String(professor.idProfessor);
-        opcao.textContent = professor.nomeProfessor;
-        selProfessor.appendChild(opcao);
-    }
 }
 
 async function criarMatricula() {
     if (btnNova.disabled) return;
 
     const modalidade = selModalidade.value;
-    const idProfessor = Number(selProfessor.value);
     const duracaoMeses = Number(selDuracao.value);
     const dataInicio = txtInicio.value || hojeISO();
 
     if (!modalidade) return mensagem(msgNova, "Escolha uma modalidade.", "erro");
-    if (!Number.isInteger(idProfessor) || idProfessor <= 0) {
-        return mensagem(msgNova, "Escolha um professor.", "erro");
-    }
 
     btnNova.disabled = true;
     btnNova.textContent = "Iniciando...";
     mensagem(msgNova, "");
 
     const resposta = await api.post("/api/v1/matriculas", {
-        matricula: {
-            modalidade,
-            dataInicio,
-            duracaoMeses,
-            professor: { idProfessor }
-        }
+        matricula: { modalidade, dataInicio, duracaoMeses }
     });
 
     btnNova.disabled = false;
@@ -334,7 +322,7 @@ async function criarMatricula() {
 
 function abrirRemocao(matricula) {
     estado.remover = matricula;
-    textoRemocao.textContent = `Remover ${matricula.modalidade} (${matricula.professor.nomeProfessor}) das suas modalidades?`;
+    textoRemocao.textContent = `Remover ${matricula.modalidade} das suas modalidades?`;
     modalRemover.hidden = false;
     btnConfirmarRemocao.focus();
 }
@@ -361,112 +349,17 @@ async function confirmarRemocao() {
     mensagem(msgAluno, "Modalidade removida.", "ok");
 }
 
-/* ============================ PROFESSOR ============================== */
+/* ----------------------------- pagamentos ---------------------------- */
 
-async function carregarProfessor() {
-    mensagem(msgAlunos, "Carregando…");
-
-    const [perfil, alunos] = await Promise.all([
-        api.get("/api/v1/professores/me"),
-        api.get("/api/v1/professores/me/alunos"),
-        carregarModalidades()
-    ]);
-
-    if (perfil.statusHttp === 401) return sair();
-
-    if (!perfil.success) {
-        mensagem(msgAlunos, perfil.error?.message || perfil.message || "Não foi possível carregar seu perfil.", "erro");
-        return;
-    }
-
-    estado.perfil = perfil.data?.professores?.[0] ?? null;
-    estado.meusAlunos = alunos.success ? (alunos.data?.matriculas ?? []) : [];
-    mensagem(msgAlunos, "");
-
-    renderStatsProfessor();
-    renderChips();
-    renderTabelaAlunos();
-}
-
-function renderStatsProfessor() {
-    const ativas = estado.meusAlunos.filter((m) => m.status === "ativa");
-    const modalidadesAtivas = new Set(ativas.map((m) => m.modalidade)).size;
-    const alunosUnicos = new Set(ativas.map((m) => m.aluno.idAluno)).size;
-
-    statsProfessor.replaceChildren(
-        criarStat(alunosUnicos, "alunos ativos"),
-        criarStat(modalidadesAtivas, "turmas em andamento"),
-        criarStat(estado.perfil?.modalidades?.length ?? 0, "modalidades que leciona")
-    );
-}
-
-function renderChips() {
-    chipsModalidades.replaceChildren();
-
-    for (const modalidade of estado.modalidades) {
-        const leciona = (estado.perfil?.modalidades ?? []).includes(modalidade.nome);
-        const ativos = estado.meusAlunos.filter(
-            (m) => m.modalidade === modalidade.nome && m.status === "ativa"
-        ).length;
-
-        const botao = document.createElement("button");
-        botao.type = "button";
-        botao.className = `chip-btn${leciona ? " is-on" : ""}`;
-        botao.textContent = ativos > 0 ? `${modalidade.nome} · ${ativos}` : modalidade.nome;
-        botao.title = leciona ? "Clique para parar de lecionar" : "Clique para começar a lecionar";
-        botao.addEventListener("click", () => alternarModalidade(modalidade.nome, leciona));
-
-        chipsModalidades.appendChild(botao);
-    }
-}
-
-async function alternarModalidade(nome, leciona) {
-    if (estado.salvando || !estado.perfil) return;
-
-    const atuais = estado.perfil.modalidades ?? [];
-    const novas = leciona
-        ? atuais.filter((modalidade) => modalidade !== nome)
-        : [...atuais, nome];
-
-    estado.salvando = true;
-    mensagem(msgModalidades, "Salvando…");
-
-    const resposta = await api.putDireto("/api/v1/professores/me/modalidades", {
-        modalidades: novas
-    });
-
-    estado.salvando = false;
-
-    if (resposta.statusHttp === 401) return sair();
-
-    if (!resposta.success) {
-        mensagem(msgModalidades, resposta.error?.message || resposta.message || "Não foi possível alterar.", "erro");
-        return;
-    }
-
-    estado.perfil = resposta.data?.professores?.[0] ?? estado.perfil;
-    mensagem(msgModalidades, leciona ? `Você saiu de ${nome}.` : `Agora você leciona ${nome}.`, "ok");
-
-    renderChips();
-    renderStatsProfessor();
-}
-
-function renderTabelaAlunos() {
-    const texto = filtroAlunos.value.trim().toLowerCase();
-    const linhas = estado.meusAlunos.filter((m) => {
-        if (!texto) return true;
-        return String(m.aluno.nomeAluno).toLowerCase().includes(texto)
-            || String(m.modalidade).toLowerCase().includes(texto);
-    });
-
-    tabelaAlunos.replaceChildren();
+function renderPagamentos() {
+    tabelaPagamentos.replaceChildren();
 
     const tabela = document.createElement("table");
     tabela.className = "table";
 
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
-    for (const titulo of ["Aluno", "E-mail", "Modalidade", "Início", "Fim", "Situação", "Restam"]) {
+    for (const titulo of ["Modalidade", "Vencimento", "Valor", "Forma", "Status", "Pago em", "Ações"]) {
         const th = document.createElement("th");
         th.textContent = titulo;
         trHead.appendChild(th);
@@ -476,27 +369,24 @@ function renderTabelaAlunos() {
 
     const tbody = document.createElement("tbody");
 
-    if (linhas.length === 0) {
+    if (estado.pagamentos.length === 0) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
         td.colSpan = 7;
         td.className = "table__empty";
-        td.textContent = estado.meusAlunos.length === 0
-            ? "Você ainda não tem alunos. Escolha uma modalidade acima para começar."
-            : "Nenhum aluno corresponde ao filtro.";
+        td.textContent = "Nenhuma mensalidade registrada ainda. Use o formulário abaixo.";
         tr.appendChild(td);
         tbody.appendChild(tr);
     }
 
-    for (const matricula of linhas) {
+    for (const pagamento of estado.pagamentos) {
         const tr = document.createElement("tr");
 
         const celulas = [
-            matricula.aluno.nomeAluno,
-            matricula.aluno.email,
-            matricula.modalidade,
-            formatarData(matricula.dataInicio),
-            formatarData(matricula.dataFim)
+            pagamento.matricula?.modalidade ?? "—",
+            formatarData(pagamento.dataVencimento),
+            formatarDinheiro(pagamento.valor),
+            pagamento.metodo
         ];
 
         for (const valor of celulas) {
@@ -507,45 +397,167 @@ function renderTabelaAlunos() {
 
         const tdStatus = document.createElement("td");
         const chip = document.createElement("span");
-        chip.className = `chip chip--${matricula.status}`;
-        chip.textContent = matricula.status;
+        chip.className = `chip chip--${pagamento.status}`;
+        chip.textContent = pagamento.status;
         tdStatus.appendChild(chip);
         tr.appendChild(tdStatus);
 
-        const tdPrazo = document.createElement("td");
-        tdPrazo.textContent = descreverPrazo(matricula);
-        tr.appendChild(tdPrazo);
+        const tdPago = document.createElement("td");
+        tdPago.textContent = pagamento.dataPagamento ? formatarData(pagamento.dataPagamento) : "—";
+        tr.appendChild(tdPago);
+
+        const tdAcoes = document.createElement("td");
+        const acoes = document.createElement("div");
+        acoes.className = "row-actions";
+
+        if (pagamento.status !== "pago") {
+            const btnPagar = document.createElement("button");
+            btnPagar.type = "button";
+            btnPagar.className = "btn btn--primary btn--tiny";
+            btnPagar.textContent = "Marcar paga";
+            btnPagar.addEventListener("click", () => marcarComoPaga(pagamento));
+            acoes.appendChild(btnPagar);
+        }
+
+        const btnExcluir = document.createElement("button");
+        btnExcluir.type = "button";
+        btnExcluir.className = "btn btn--danger btn--tiny";
+        btnExcluir.textContent = "Excluir";
+        btnExcluir.addEventListener("click", () => excluirPagamento(pagamento));
+        acoes.appendChild(btnExcluir);
+
+        tdAcoes.appendChild(acoes);
+        tr.appendChild(tdAcoes);
 
         tbody.appendChild(tr);
     }
 
     tabela.appendChild(tbody);
-    tabelaAlunos.appendChild(tabela);
+    tabelaPagamentos.appendChild(tabela);
+}
 
-    const contador = document.createElement("p");
-    contador.className = "panel__count";
-    contador.textContent = `${linhas.length} de ${estado.meusAlunos.length} matrícula(s)`;
-    tabelaAlunos.appendChild(contador);
+function preencherFormPagamento() {
+    const anterior = selMatriculaPagamento.value;
+    selMatriculaPagamento.replaceChildren();
+
+    if (estado.minhas.length === 0) {
+        const opcao = document.createElement("option");
+        opcao.value = "";
+        opcao.textContent = "Inicie um plano primeiro";
+        selMatriculaPagamento.appendChild(opcao);
+        btnPagamento.disabled = true;
+        return;
+    }
+
+    for (const matricula of estado.minhas) {
+        const opcao = document.createElement("option");
+        opcao.value = String(matricula.idMatricula);
+        opcao.textContent = `${matricula.modalidade} (${matricula.status})`;
+        selMatriculaPagamento.appendChild(opcao);
+    }
+
+    btnPagamento.disabled = false;
+    if (anterior) selMatriculaPagamento.value = anterior;
+    if (!txtVencimento.value) txtVencimento.value = hojeISO();
+}
+
+async function registrarPagamento() {
+    if (btnPagamento.disabled) return;
+
+    const idMatricula = Number(selMatriculaPagamento.value);
+    const valor = Number(txtValor.value);
+    const dataVencimento = txtVencimento.value || hojeISO();
+    const metodo = selMetodo.value;
+
+    if (!Number.isInteger(idMatricula) || idMatricula <= 0) {
+        return mensagem(msgNovoPagamento, "Inicie um plano antes de registrar mensalidades.", "erro");
+    }
+
+    if (!Number.isFinite(valor) || valor <= 0) {
+        return mensagem(msgNovoPagamento, "Informe um valor maior que zero.", "erro");
+    }
+
+    btnPagamento.disabled = true;
+    btnPagamento.textContent = "Registrando...";
+    mensagem(msgNovoPagamento, "");
+
+    const resposta = await api.post("/api/v1/pagamentos", {
+        pagamento: {
+            valor,
+            dataVencimento,
+            metodo,
+            status: "pendente",
+            matricula: { idMatricula }
+        }
+    });
+
+    btnPagamento.disabled = false;
+    btnPagamento.textContent = "Registrar";
+
+    if (resposta.statusHttp === 401) return sair();
+
+    if (!resposta.success) {
+        mensagem(msgNovoPagamento, resposta.error?.message || resposta.message || "Não foi possível registrar.", "erro");
+        return;
+    }
+
+    txtValor.value = "";
+    await carregarAluno();
+    mensagem(msgNovoPagamento, "Mensalidade registrada!", "ok");
+}
+
+async function marcarComoPaga(pagamento) {
+    mensagem(msgPagamentos, "Salvando…");
+
+    const resposta = await api.put("/api/v1/pagamentos", pagamento.idPagamento, {
+        pagamento: { status: "pago" }
+    });
+
+    if (resposta.statusHttp === 401) return sair();
+
+    if (!resposta.success) {
+        mensagem(msgPagamentos, resposta.error?.message || resposta.message || "Não foi possível marcar como paga.", "erro");
+        return;
+    }
+
+    await carregarAluno();
+    mensagem(msgPagamentos, "Mensalidade marcada como paga.", "ok");
+}
+
+async function excluirPagamento(pagamento) {
+    const rotulo = `${pagamento.matricula?.modalidade ?? "mensalidade"} · ${formatarDinheiro(pagamento.valor)}`;
+    if (!window.confirm(`Excluir ${rotulo}?`)) return;
+
+    mensagem(msgPagamentos, "Excluindo…");
+
+    const resposta = await api.delete("/api/v1/pagamentos", pagamento.idPagamento);
+    if (resposta.statusHttp === 401) return sair();
+
+    if (!resposta.success) {
+        mensagem(msgPagamentos, resposta.error?.message || resposta.message || "Não foi possível excluir.", "erro");
+        return;
+    }
+
+    await carregarAluno();
+    mensagem(msgPagamentos, "Mensalidade excluída.", "ok");
 }
 
 /* ------------------------------ eventos ------------------------------ */
 
 btnSair.addEventListener("click", sair);
+btnAtualizar.addEventListener("click", carregarAluno);
 
-btnAtualizar.addEventListener("click", async () => {
-    if (tipo === "aluno") await carregarAluno();
-    else await carregarProfessor();
-});
-
-selModalidade.addEventListener("change", preencherProfessores);
 btnNova.addEventListener("click", criarMatricula);
-
 formNova.addEventListener("submit", (evento) => {
     evento.preventDefault();
     criarMatricula();
 });
 
-filtroAlunos.addEventListener("input", renderTabelaAlunos);
+btnPagamento.addEventListener("click", registrarPagamento);
+formPagamento.addEventListener("submit", (evento) => {
+    evento.preventDefault();
+    registrarPagamento();
+});
 
 btnCancelarRemocao.addEventListener("click", fecharRemocao);
 btnConfirmarRemocao.addEventListener("click", confirmarRemocao);
@@ -555,21 +567,6 @@ modalRemover.addEventListener("click", (evento) => {
 
 /* ------------------------------ início ------------------------------- */
 
-function iniciar() {
-    const nome = tipo === "aluno" ? usuario.nomeAluno : usuario.nomeProfessor;
+boasVindas.textContent = `Olá, ${usuario.nomeAluno ?? "aluno"}`;
 
-    boasVindas.textContent = `Olá, ${nome ?? "usuário"}`;
-    badgePapel.textContent = tipo === "aluno" ? "Aluno" : "Professor";
-    badgePapel.classList.add(`badge--${tipo}`);
-
-    viewAluno.hidden = tipo !== "aluno";
-    viewProfessor.hidden = tipo !== "professor";
-
-    if (tipo === "aluno") {
-        carregarAluno();
-    } else {
-        carregarProfessor();
-    }
-}
-
-if (sessaoValida) iniciar();
+if (token) carregarAluno();

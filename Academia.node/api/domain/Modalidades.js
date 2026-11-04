@@ -1,9 +1,9 @@
 /**
  * Modalidades oferecidas pela academia.
  *
- * A lista é fixa (domínio do sistema): a matrícula guarda o nome da modalidade
- * e o professor guarda a lista das que leciona. A validação fica aqui para que
- * model, service e frontend trabalhem sempre com o mesmo texto canônico.
+ * A lista é fixa (domínio do sistema): a matrícula guarda o nome da modalidade.
+ * A validação fica aqui para que model, service e frontend trabalhem sempre
+ * com o mesmo texto canônico.
  */
 const MODALIDADES = [
     "Musculação",

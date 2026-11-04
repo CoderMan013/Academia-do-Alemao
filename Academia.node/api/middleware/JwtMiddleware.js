@@ -27,8 +27,7 @@ module.exports = class JwtMiddleware {
                 role: payload.role,
                 name: payload.name,
                 idUsuario: payload.idUsuario ?? null,
-                idAluno: payload.idAluno ?? null,
-                idProfessor: payload.idProfessor ?? null
+                idAluno: payload.idAluno ?? null
             };
 
             // Refresh: renova o token a cada requisição autenticada

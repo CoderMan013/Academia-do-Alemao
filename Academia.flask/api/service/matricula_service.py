@@ -3,31 +3,26 @@ import datetime
 
 from api.dao.aluno_dao import AlunoDAO
 from api.dao.matricula_dao import MatriculaDAO
-from api.dao.professor_dao import ProfessorDAO
 from api.domain.modalidades import validar_duracao
 from api.model.aluno import Aluno
 from api.model.matricula import Matricula
-from api.model.professor import Professor
 from api.utils.error_response import ErrorResponse
 from api.utils.validar import validar
 
 """
 Classe responsável pela camada de serviço da entidade Matricula.
 
-Recebe três DAOs por injeção de dependência:
-- MatriculaDAO: CRUD da matrícula;
-- AlunoDAO: valida se o aluno existe;
-- ProfessorDAO: valida se o professor existe e se leciona a modalidade.
+Recebe MatriculaDAO (CRUD) e AlunoDAO (valida se o aluno existe).
+Como o sistema tem um único papel logado (aluno), o dono da matrícula
+vem sempre do token.
 """
 class MatriculaService:
     def __init__(self,
                  matricula_dao_dependency: MatriculaDAO,
-                 aluno_dao_dependency: AlunoDAO,
-                 professor_dao_dependency: ProfessorDAO):
+                 aluno_dao_dependency: AlunoDAO):
         print("⬆️  MatriculaService.__init__()")
         self.__matriculaDAO = matricula_dao_dependency
         self.__alunoDAO = aluno_dao_dependency
-        self.__professorDAO = professor_dao_dependency
 
     @staticmethod
     def hoje() -> str:
@@ -55,40 +50,23 @@ class MatriculaService:
         return resultado.isoformat()
 
     @staticmethod
-    def _id_aluno_do_body(json_matricula: dict, usuario: dict) -> int:
-        """
-        O aluno matriculado vem do token quando quem chama é aluno
-        (ninguém matricula outra pessoa).
-        """
-        if (usuario or {}).get("role") == "aluno":
-            return int(usuario.get("idAluno"))
-
+    def _id_aluno_do_token(usuario: dict) -> int:
+        """O aluno matriculado vem do token (ninguém matricula outra pessoa)."""
         try:
-            return int((json_matricula.get("aluno") or {}).get("idAluno"))
+            id_aluno = int((usuario or {}).get("idAluno"))
         except (TypeError, ValueError):
+            id_aluno = 0
+
+        if id_aluno <= 0:
             raise ErrorResponse(
-                400,
-                "Erro na validação de dados",
-                {"message": "O campo 'aluno.idAluno' é obrigatório!"}
+                401,
+                "Sessão inválida",
+                {"message": "O token não identifica um aluno"}
             )
 
-    @staticmethod
-    def _id_professor_do_body(json_matricula: dict) -> int:
-        try:
-            return int((json_matricula.get("professor") or {}).get("idProfessor"))
-        except (TypeError, ValueError):
-            raise ErrorResponse(
-                400,
-                "Erro na validação de dados",
-                {"message": "O campo 'professor.idProfessor' é obrigatório!"}
-            )
+        return id_aluno
 
-    def _validar_vinculos(self, id_aluno: int, id_professor: int, modalidade: str) -> tuple[dict, dict]:
-        """
-        Carrega aluno e professor e valida a modalidade do professor.
-
-        :return: (aluno_db, professor_db)
-        """
+    def _validar_aluno(self, id_aluno: int) -> dict:
         aluno_db = self.__alunoDAO.findById(id_aluno)
         if not aluno_db:
             raise ErrorResponse(
@@ -96,23 +74,7 @@ class MatriculaService:
                 "Aluno não encontrado",
                 {"message": f"Não existe aluno com id {id_aluno}"}
             )
-
-        professor_db = self.__professorDAO.findById(id_professor)
-        if not professor_db:
-            raise ErrorResponse(
-                404,
-                "Professor não encontrado",
-                {"message": f"Não existe professor com id {id_professor}"}
-            )
-
-        if modalidade not in professor_db["modalidades"]:
-            raise ErrorResponse(
-                400,
-                "Professor não leciona essa modalidade",
-                {"message": f"{professor_db['nomeProfessor']} não leciona {modalidade}"}
-            )
-
-        return aluno_db, professor_db
+        return aluno_db
 
     def createMatricula(self, jsonMatricula: dict, usuario: dict) -> dict:
         """
@@ -120,7 +82,6 @@ class MatriculaService:
 
         Regras:
         - o aluno precisa existir;
-        - o professor precisa existir e lecionar a modalidade;
         - o aluno não pode ter outra matrícula ativa na MESMA modalidade;
         - se dataFim não for informada, é calculada com duracaoMeses (padrão 3).
 
@@ -130,12 +91,12 @@ class MatriculaService:
         """
         print("🟣 MatriculaService.createMatricula()")
 
-        id_aluno = self._id_aluno_do_body(jsonMatricula, usuario)
-        id_professor = self._id_professor_do_body(jsonMatricula)
-
+        id_aluno = self._id_aluno_do_token(usuario)
         matricula = Matricula()
+        duracao = 3
 
         def preencher():
+            nonlocal duracao
             matricula.modalidade = jsonMatricula.get("modalidade")
             matricula.status = jsonMatricula.get("status") or "ativa"
             matricula.dataInicio = jsonMatricula.get("dataInicio") or MatriculaService.hoje()
@@ -147,24 +108,14 @@ class MatriculaService:
 
         validar(preencher)
 
-        aluno_db, professor_db = self._validar_vinculos(
-            id_aluno,
-            id_professor,
-            matricula.modalidade
-        )
+        aluno_db = self._validar_aluno(id_aluno)
 
-        # Os models exigem instâncias completas: monta a partir dos dados do banco.
-        def preencher_vinculos():
+        def preencher_vinculo():
             aluno = Aluno()
             aluno.idAluno = aluno_db["idAluno"]
-
-            professor = Professor()
-            professor.idProfessor = professor_db["idProfessor"]
-
             matricula.aluno = aluno
-            matricula.professor = professor
 
-        validar(preencher_vinculos)
+        validar(preencher_vinculo)
 
         if matricula.status == "ativa":
             ativas = self.__matriculaDAO.countByAlunoModalidade(
@@ -184,12 +135,12 @@ class MatriculaService:
 
         return {
             "idMatricula": novo_id,
+            "modalidade": matricula.modalidade,
             "dataInicio": matricula.dataInicio,
             "dataFim": matricula.dataFim,
             "status": matricula.status,
-            "modalidade": matricula.modalidade,
             "aluno": aluno_db,
-            "professor": professor_db,
+            "duracaoMeses": duracao,
         }
 
     def findAll(self) -> list[dict]:
@@ -200,10 +151,6 @@ class MatriculaService:
         print("🟣 MatriculaService.findMinhas()")
         return self.__matriculaDAO.findByAluno(idAluno)
 
-    def findMeusAlunos(self, idProfessor: int) -> list[dict]:
-        print("🟣 MatriculaService.findMeusAlunos()")
-        return self.__matriculaDAO.findByProfessor(idProfessor)
-
     def findById(self, idMatricula: int) -> dict | None:
         print("🟣 MatriculaService.findById()")
 
@@ -213,48 +160,36 @@ class MatriculaService:
         return self.__matriculaDAO.findById(matricula.idMatricula)
 
     def _autorizar(self, matricula: dict, usuario: dict):
-        """Confere se o usuário do token pode mexer nessa matrícula."""
-        papel = (usuario or {}).get("role")
-
-        if papel == "aluno" and int(usuario.get("idAluno") or 0) != int(matricula["aluno"]["idAluno"]):
+        """Confere se o aluno do token é o dono da matrícula."""
+        if int((usuario or {}).get("idAluno") or 0) != int(matricula["aluno"]["idAluno"]):
             raise ErrorResponse(
                 403,
                 "Acesso negado",
                 {"message": "Você só pode alterar as suas próprias matrículas"}
             )
 
-        if papel == "professor" and int(usuario.get("idProfessor") or 0) != int(matricula["professor"]["idProfessor"]):
-            raise ErrorResponse(
-                403,
-                "Acesso negado",
-                {"message": "Você só pode alterar as matrículas das suas turmas"}
-            )
-
-    def updateMatricula(self, idMatricula: int, jsonMatricula: dict, usuario: dict) -> bool:
+    def updateMatricula(self, idMatricula: int, jsonMatricula: dict, usuario: dict) -> dict | None:
         """
-        Atualiza datas, status, modalidade e professor da matrícula.
+        Atualiza modalidade, datas e status da matrícula.
 
         :param idMatricula: int
         :param jsonMatricula: dict
         :param usuario: dict
-        :return: bool
+        :return: dict | None
         """
         print("🟣 MatriculaService.updateMatricula()")
 
         atual = self.findById(idMatricula)
         if not atual:
-            return False
+            return None
 
         self._autorizar(atual, usuario)
-
-        id_aluno = self._id_aluno_do_body(jsonMatricula, usuario)
-        id_professor = self._id_professor_do_body(jsonMatricula)
 
         matricula = Matricula()
 
         def preencher():
             matricula.idMatricula = idMatricula
-            matricula.modalidade = jsonMatricula.get("modalidade")
+            matricula.modalidade = jsonMatricula.get("modalidade") or atual["modalidade"]
             matricula.status = jsonMatricula.get("status") or atual["status"]
             matricula.dataInicio = jsonMatricula.get("dataInicio") or atual["dataInicio"]
             matricula.dataFim = jsonMatricula.get("dataFim") or MatriculaService.somarMeses(
@@ -264,27 +199,18 @@ class MatriculaService:
 
         validar(preencher)
 
-        aluno_db, professor_db = self._validar_vinculos(
-            id_aluno,
-            id_professor,
-            matricula.modalidade
-        )
+        aluno_db = self._validar_aluno(atual["aluno"]["idAluno"])
 
-        def preencher_vinculos():
+        def preencher_vinculo():
             aluno = Aluno()
             aluno.idAluno = aluno_db["idAluno"]
-
-            professor = Professor()
-            professor.idProfessor = professor_db["idProfessor"]
-
             matricula.aluno = aluno
-            matricula.professor = professor
 
-        validar(preencher_vinculos)
+        validar(preencher_vinculo)
 
         if matricula.status == "ativa":
             ativas = self.__matriculaDAO.countByAlunoModalidade(
-                id_aluno,
+                aluno_db["idAluno"],
                 matricula.modalidade,
                 "ativa",
                 idMatricula
@@ -297,7 +223,8 @@ class MatriculaService:
                     {"message": f"O aluno {aluno_db['nomeAluno']} já possui uma matrícula ativa em {matricula.modalidade}"}
                 )
 
-        return self.__matriculaDAO.update(matricula)
+        atualizou = self.__matriculaDAO.update(matricula)
+        return self.findById(idMatricula) if atualizou else None
 
     def deleteMatricula(self, idMatricula: int, usuario: dict) -> bool:
         """
