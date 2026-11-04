@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Academia do Alemão · Painel</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+  <div class="app">
+    <header class="card app__header">
+      <div class="brand brand--row">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
+          </svg>
+        </span>
+        <div>
+          <h1 class="brand__title">Academia do Alemão</h1>
+          <p class="brand__subtitle">
+            <span id="boasVindas">—</span>
+            <span class="badge" id="badgePapel">—</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="app__actions">
+        <button class="btn btn--ghost btn--tiny" id="btnAtualizar" type="button">Atualizar</button>
+        <button class="btn btn--ghost btn--tiny" id="btnSair" type="button">Sair</button>
+      </div>
+    </header>
+
+    <!-- ============================ VISÃO ALUNO ============================ -->
+    <div class="view" id="viewAluno" hidden>
+      <section class="stat-grid" id="statsAluno" aria-label="Resumo do aluno"></section>
+
+      <section class="card panel">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Minhas modalidades</h2>
+            <p class="hint">Cada cartão é uma turma: modalidade, professor e tempo restante do plano.</p>
+          </div>
+          <p class="hint" id="msgAluno" role="status"></p>
+        </div>
+
+        <div class="matricula-grid" id="minhasMatriculas"></div>
+      </section>
+
+      <section class="card panel">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Iniciar novo plano</h2>
+            <p class="hint">Escolha a modalidade e o professor que leciona ela.</p>
+          </div>
+        </div>
+
+        <form class="form-grid" id="formNova" autocomplete="off">
+          <label class="field">
+            <span class="field__label">Modalidade</span>
+            <select class="input" id="selModalidade"></select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Professor</span>
+            <select class="input" id="selProfessor"></select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Duração do plano</span>
+            <select class="input" id="selDuracao">
+              <option value="1">1 mês</option>
+              <option value="3" selected>3 meses</option>
+              <option value="6">6 meses</option>
+              <option value="12">12 meses</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Início</span>
+            <input class="input" id="txtInicio" type="date" />
+          </label>
+        </form>
+
+        <div class="panel__actions">
+          <button class="btn btn--primary" id="btnNova" type="button">Iniciar plano</button>
+          <span class="hint" id="msgNova" role="status"></span>
+        </div>
+      </section>
+    </div>
+
+    <!-- ========================== VISÃO PROFESSOR ========================== -->
+    <div class="view" id="viewProfessor" hidden>
+      <section class="stat-grid" id="statsProfessor" aria-label="Resumo do professor"></section>
+
+      <section class="card panel">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Modalidades que leciono</h2>
+            <p class="hint">Clique em uma modalidade para começar ou parar de lecioná-la.</p>
+          </div>
+          <p class="hint" id="msgModalidades" role="status"></p>
+        </div>
+
+        <div class="chips" id="chipsModalidades"></div>
+      </section>
+
+      <section class="card panel">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Meus alunos</h2>
+            <p class="hint">Matrículas das turmas que você leciona.</p>
+          </div>
+          <input class="input input--small" id="filtroAlunos" type="search" placeholder="Filtrar aluno ou modalidade…" />
+        </div>
+
+        <div class="table-wrap" id="tabelaAlunos"></div>
+        <p class="hint" id="msgAlunos" role="status"></p>
+      </section>
+    </div>
+  </div>
+
+  <!-- Confirmação de saída da turma -->
+  <div class="modal" id="modalRemover" hidden>
+    <div class="card modal__box">
+      <h3 class="modal__title">Sair da modalidade</h3>
+      <p class="modal__text" id="textoRemocao">Tem certeza que deseja remover esta matrícula?</p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost btn--tiny" id="btnCancelarRemocao" type="button">Cancelar</button>
+        <button class="btn btn--danger btn--tiny" id="btnConfirmarRemocao" type="button">Remover</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+
+</html>

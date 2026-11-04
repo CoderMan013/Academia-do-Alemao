@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Academia do Alemão · Login</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+  <main class="auth">
+    <section class="card auth__card auth__card--wide">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
+          </svg>
+        </span>
+        <h1 class="brand__title">Academia do Alemão</h1>
+        <p class="brand__subtitle">Alunos, professores e modalidades</p>
+      </div>
+
+      <!-- ------------------------------ ENTRAR ------------------------------ -->
+      <form class="stack" id="formLogin" autocomplete="on">
+        <label class="field">
+          <span class="field__label">E-mail</span>
+          <input class="input" id="txtEmail" type="email" placeholder="ana@academia.com" required />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Senha</span>
+          <input class="input" id="txtSenha" type="password" placeholder="Senha@123" required />
+        </label>
+
+        <button class="btn btn--primary btn--block" id="btnEntrar" type="submit">Entrar</button>
+
+        <p class="hint" id="divResposta" role="status"></p>
+      </form>
+
+      <!-- --------------------------- CRIAR CONTA ---------------------------- -->
+      <div class="stack" id="formCadastro" hidden>
+        <ol class="steps" aria-label="Etapas do cadastro">
+          <li class="step is-active" id="marcadorEtapa1"><span>1</span> Quem é você</li>
+          <li class="step" id="marcadorEtapa2"><span>2</span> Seus dados</li>
+        </ol>
+
+        <!-- Etapa 1: nome + tipo de cadastro -->
+        <div class="stack" id="etapa1">
+          <label class="field">
+            <span class="field__label">Nome</span>
+            <input class="input" id="txtNome" type="text" placeholder="Digite seu nome completo" maxlength="128" />
+          </label>
+
+          <fieldset class="fieldset">
+            <legend class="field__label">Você quer se cadastrar como?</legend>
+
+            <div class="role-grid">
+              <label class="role-card">
+                <input type="radio" name="tipoCadastro" value="aluno" />
+                <span class="role-card__title">Aluno</span>
+                <span class="role-card__text">Entrar em modalidades e acompanhar seus planos</span>
+              </label>
+
+              <label class="role-card">
+                <input type="radio" name="tipoCadastro" value="professor" />
+                <span class="role-card__title">Professor</span>
+                <span class="role-card__text">Lecionar modalidades e acompanhar seus alunos</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <button class="btn btn--primary btn--block" id="btnEtapa1" type="button">Continuar</button>
+          <p class="hint" id="divRespostaEtapa1" role="status"></p>
+        </div>
+
+        <!-- Etapa 2: e-mail, senha e modalidades (professor) -->
+        <div class="stack" id="etapa2" hidden>
+          <label class="field">
+            <span class="field__label">E-mail</span>
+            <input class="input" id="txtEmailCadastro" type="email" placeholder="voce@email.com" maxlength="64" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Senha</span>
+            <input class="input" id="txtSenhaCadastro" type="password" placeholder="Senha@123" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Confirmar senha</span>
+            <input class="input" id="txtSenhaConfirmar" type="password" placeholder="Repita a senha" />
+          </label>
+
+          <p class="hint">Mínimo 6 caracteres, com 1 letra maiúscula, 1 número e 1 caractere especial.</p>
+
+          <fieldset class="fieldset" id="blocoModalidades" hidden>
+            <legend class="field__label">Quais modalidades você quer lecionar?</legend>
+            <div class="check-grid" id="checkModalidades"></div>
+            <p class="hint">Pode marcar mais de uma — e mudar depois no painel.</p>
+          </fieldset>
+
+          <div class="panel__actions">
+            <button class="btn btn--ghost" id="btnVoltarEtapa" type="button">Voltar</button>
+            <button class="btn btn--primary" id="btnCriarConta" type="button">Criar conta</button>
+          </div>
+
+          <p class="hint" id="divRespostaCadastro" role="status"></p>
+        </div>
+      </div>
+
+      <!-- ------------------------------ RODAPÉ ------------------------------ -->
+      <div class="auth__foot">
+        <p class="hint" id="dicaDemo">
+          Aluno: ana@academia.com · Professor: carlos@academia.com · Senha@123
+        </p>
+        <p class="hint">
+          <span id="rodapeTexto">Ainda não tem conta?</span>
+          <button class="link" id="btnAlternar" type="button">Criar conta</button>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import ApiService from "./ApiService.js";
+
+    const MODALIDADES_PADRAO = ["Musculação", "Cross Fit", "Muay Thai", "Karatê", "Boxe"];
+
+    const formLogin = document.getElementById("formLogin");
+    const formCadastro = document.getElementById("formCadastro");
+    const etapa1 = document.getElementById("etapa1");
+    const etapa2 = document.getElementById("etapa2");
+
+    const txtEmail = document.getElementById("txtEmail");
+    const txtSenha = document.getElementById("txtSenha");
+    const divResposta = document.getElementById("divResposta");
+    const btnEntrar = document.getElementById("btnEntrar");
+
+    const txtNome = document.getElementById("txtNome");
+    const txtEmailCadastro = document.getElementById("txtEmailCadastro");
+    const txtSenhaCadastro = document.getElementById("txtSenhaCadastro");
+    const txtSenhaConfirmar = document.getElementById("txtSenhaConfirmar");
+    const divRespostaEtapa1 = document.getElementById("divRespostaEtapa1");
+    const divRespostaCadastro = document.getElementById("divRespostaCadastro");
+    const btnEtapa1 = document.getElementById("btnEtapa1");
+    const btnVoltarEtapa = document.getElementById("btnVoltarEtapa");
+    const btnCriarConta = document.getElementById("btnCriarConta");
+    const blocoModalidades = document.getElementById("blocoModalidades");
+    const checkModalidades = document.getElementById("checkModalidades");
+    const marcadorEtapa1 = document.getElementById("marcadorEtapa1");
+    const marcadorEtapa2 = document.getElementById("marcadorEtapa2");
+
+    const btnAlternar = document.getElementById("btnAlternar");
+    const rodapeTexto = document.getElementById("rodapeTexto");
+    const dicaDemo = document.getElementById("dicaDemo");
+
+    const api = new ApiService(null);
+
+    const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const REGEX_ESPECIAL = /[!@#$%^&*(),.?":{}|<>_\-+]/;
+
+    let tipoEscolhido = null;
+
+    function mensagem(elemento, texto, tipo) {
+      elemento.textContent = texto ?? "";
+      elemento.className = tipo === "erro" ? "hint hint--error" : tipo === "ok" ? "hint hint--ok" : "hint";
+    }
+
+    /* ---------------------- modalidades do professor ---------------------- */
+
+    function montarCheckboxes(nomes) {
+      checkModalidades.replaceChildren();
+
+      for (const nome of nomes) {
+        const rotulo = document.createElement("label");
+        rotulo.className = "check";
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.value = nome;
+
+        const texto = document.createElement("span");
+        texto.textContent = nome;
+
+        rotulo.append(input, texto);
+        checkModalidades.appendChild(rotulo);
+      }
+    }
+
+    async function carregarModalidades() {
+      const resposta = await api.simpleGet("/api/v1/modalidades");
+      const nomes = resposta?.data?.modalidades?.map((m) => m.nome) ?? [];
+      montarCheckboxes(nomes.length ? nomes : MODALIDADES_PADRAO);
+    }
+
+    /* ------------------------- troca entre as telas ------------------------ */
+
+    function irParaLogin() {
+      formCadastro.hidden = true;
+      formLogin.hidden = false;
+      dicaDemo.hidden = false;
+      rodapeTexto.textContent = "Ainda não tem conta?";
+      btnAlternar.textContent = "Criar conta";
+      mensagem(divRespostaCadastro, "");
+      mensagem(divRespostaEtapa1, "");
+      mostrarEtapa(1);
+      txtEmail.focus();
+    }
+
+    function irParaCadastro() {
+      formLogin.hidden = true;
+      formCadastro.hidden = false;
+      dicaDemo.hidden = true;
+      rodapeTexto.textContent = "Já tem uma conta?";
+      btnAlternar.textContent = "Entrar";
+      mensagem(divResposta, "");
+      mostrarEtapa(1);
+      txtNome.focus();
+    }
+
+    function mostrarEtapa(numero) {
+      etapa1.hidden = numero !== 1;
+      etapa2.hidden = numero !== 2;
+      marcadorEtapa1.classList.toggle("is-active", numero === 1);
+      marcadorEtapa2.classList.toggle("is-active", numero === 2);
+    }
+
+    btnAlternar.addEventListener("click", () => {
+      if (formCadastro.hidden) irParaCadastro();
+      else irParaLogin();
+    });
+
+    /* -------------------------------- entrar ------------------------------- */
+
+    formLogin.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+
+      const email = txtEmail.value.trim();
+      const senha = txtSenha.value.trim();
+
+      if (!email) return mensagem(divResposta, "Informe o e-mail.", "erro");
+      if (!senha) return mensagem(divResposta, "Informe a senha.", "erro");
+
+      btnEntrar.disabled = true;
+      btnEntrar.textContent = "Entrando...";
+      mensagem(divResposta, "");
+
+      const resposta = await api.post("/api/v1/auth/login", { email, senha });
+
+      if (resposta.success === true) {
+        localStorage.setItem("userData", JSON.stringify(resposta));
+        window.location.href = "dashboard.html";
+        return;
+      }
+
+      const detalhe = resposta.error?.message || resposta.message || "E-mail ou senha inválidos.";
+      mensagem(divResposta, detalhe, "erro");
+      btnEntrar.disabled = false;
+      btnEntrar.textContent = "Entrar";
+    });
+
+    /* --------------------------- etapa 1 -> 2 ------------------------------ */
+
+    btnEtapa1.addEventListener("click", () => {
+      const nome = txtNome.value.trim();
+      const marcado = document.querySelector("input[name='tipoCadastro']:checked");
+
+      if (nome.length < 3) return mensagem(divRespostaEtapa1, "O nome deve ter pelo menos 3 caracteres.", "erro");
+      if (!marcado) return mensagem(divRespostaEtapa1, "Escolha se você é aluno ou professor.", "erro");
+
+      tipoEscolhido = marcado.value;
+      mensagem(divRespostaEtapa1, "");
+      mensagem(divRespostaCadastro, "");
+
+      // O professor escolhe as modalidades já no cadastro.
+      blocoModalidades.hidden = tipoEscolhido !== "professor";
+
+      mostrarEtapa(2);
+      txtEmailCadastro.focus();
+    });
+
+    btnVoltarEtapa.addEventListener("click", () => {
+      mensagem(divRespostaCadastro, "");
+      mostrarEtapa(1);
+    });
+
+    /* ----------------------------- criar conta ---------------------------- */
+
+    btnCriarConta.addEventListener("click", async () => {
+      const nome = txtNome.value.trim();
+      const email = txtEmailCadastro.value.trim().toLowerCase();
+      const senha = txtSenhaCadastro.value;
+      const confirmar = txtSenhaConfirmar.value;
+
+      if (!tipoEscolhido) return mensagem(divRespostaCadastro, "Volte e escolha o tipo de cadastro.", "erro");
+      if (!REGEX_EMAIL.test(email)) return mensagem(divRespostaCadastro, "Informe um e-mail válido.", "erro");
+      if (senha.length < 6) return mensagem(divRespostaCadastro, "A senha deve ter pelo menos 6 caracteres.", "erro");
+      if (!/[A-Z]/.test(senha)) return mensagem(divRespostaCadastro, "A senha deve ter pelo menos uma letra maiúscula.", "erro");
+      if (!/[0-9]/.test(senha)) return mensagem(divRespostaCadastro, "A senha deve ter pelo menos um número.", "erro");
+      if (!REGEX_ESPECIAL.test(senha)) return mensagem(divRespostaCadastro, "A senha deve ter pelo menos um caractere especial.", "erro");
+      if (senha !== confirmar) return mensagem(divRespostaCadastro, "As senhas não conferem.", "erro");
+
+      const modalidades = tipoEscolhido === "professor"
+        ? [...checkModalidades.querySelectorAll("input:checked")].map((input) => input.value)
+        : undefined;
+
+      btnCriarConta.disabled = true;
+      btnCriarConta.textContent = "Criando conta...";
+      mensagem(divRespostaCadastro, "");
+
+      const corpo = { tipo: tipoEscolhido, nome, email, senha };
+      if (modalidades) corpo.modalidades = modalidades;
+
+      const resposta = await api.post("/api/v1/auth/registrar", corpo);
+
+      if (resposta.success !== true) {
+        mensagem(divRespostaCadastro, resposta.error?.message || resposta.message || "Não foi possível criar a conta.", "erro");
+        btnCriarConta.disabled = false;
+        btnCriarConta.textContent = "Criar conta";
+        return;
+      }
+
+      // A API já devolve o token: entra direto no painel.
+      localStorage.setItem("userData", JSON.stringify(resposta));
+      window.location.href = "dashboard.html";
+    });
+
+    /* ------------------------------- sessão -------------------------------- */
+
+    const userData = localStorage.getItem("userData");
+    if (userData) {
+      try {
+        const dados = JSON.parse(userData);
+        if (dados?.data?.token) window.location.href = "dashboard.html";
+      } catch (_) {
+        localStorage.removeItem("userData");
+      }
+    }
+
+    carregarModalidades();
+  </script>
+</body>
+
+</html>
