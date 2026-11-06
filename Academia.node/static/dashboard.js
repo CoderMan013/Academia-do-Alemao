@@ -40,7 +40,8 @@ const msgAluno = document.getElementById("msgAluno");
 const formNova = document.getElementById("formNova");
 const selTreino = document.getElementById("selTreino");
 const txtInicio = document.getElementById("txtInicio");
-const txtFim = document.getElementById("txtFim");
+const selDuracao = document.getElementById("selDuracao");
+const msgFim = document.getElementById("msgFim");
 const btnNova = document.getElementById("btnNova");
 const msgNova = document.getElementById("msgNova");
 
@@ -83,6 +84,14 @@ function hojeISO() {
     const agora = new Date();
     const local = new Date(agora.getTime() - agora.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 10);
+}
+
+function somarMesesISO(data, meses) {
+    const [ano, mes, dia] = data.split("-").map(Number);
+    const destino = new Date(Date.UTC(ano, mes - 1 + meses, 1));
+    const ultimoDia = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+    const vencimento = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth(), Math.min(dia, ultimoDia)));
+    return vencimento.toISOString().slice(0, 10);
 }
 
 function diasRestantes(dataFim) {
@@ -356,17 +365,27 @@ function preencherNovaMatricula() {
 
     btnNova.disabled = false;
     if (!txtInicio.value) txtInicio.value = hojeISO();
+    atualizarFim();
+}
+
+/* Mostra a data de término calculada a partir do início + duração em meses. */
+function atualizarFim() {
+    const meses = Number(selDuracao.value);
+    const dataInicio = txtInicio.value || hojeISO();
+    const dataFim = somarMesesISO(dataInicio, meses);
+    mensagem(msgFim, `Termina em ${formatarData(dataFim)} · ${meses} ${meses === 1 ? "mês" : "meses"}`);
+    return dataFim;
 }
 
 async function criarMatricula() {
     if (btnNova.disabled) return;
 
     const treino = selTreino.value;
+    const duracaoMeses = Number(selDuracao.value);
     const dataInicio = txtInicio.value || hojeISO();
-    const dataFim = txtFim.value;
+    const dataFim = somarMesesISO(dataInicio, duracaoMeses);
 
     if (!treino) return mensagem(msgNova, "Escolha um treino.", "erro");
-    if (!dataFim) return mensagem(msgNova, "Informe a data de fim do plano.", "erro");
 
     btnNova.disabled = true;
     btnNova.textContent = "Iniciando...";
@@ -589,6 +608,8 @@ modalConta.addEventListener("click", (evento) => {
 });
 
 btnNova.addEventListener("click", criarMatricula);
+selDuracao.addEventListener("change", atualizarFim);
+txtInicio.addEventListener("change", atualizarFim);
 formNova.addEventListener("submit", (evento) => {
     evento.preventDefault();
     criarMatricula();

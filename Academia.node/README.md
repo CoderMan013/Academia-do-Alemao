@@ -144,7 +144,8 @@ criada por `POST /api/v1/auth/registrar`, que já devolve o token — o aluno ca
   e, opcionalmente, a senha. Para confirmar, informe a senha atual.
 - **Meus treinos:** cartões com cada treino, o período do plano e quantos dias faltam
   (com barra de progresso), além de quantas mensalidades existem naquela matrícula.
-- **Iniciar novo plano:** treino e datas de início e fim informadas pelo aluno; o sistema
+- **Iniciar novo plano:** o aluno escolhe o treino, a duração (**1, 3, 6 ou 12 meses**) e a data de
+  início; a data de fim é calculada somando os meses, e o sistema
   gera uma mensalidade pendente por mês, do início até o último vencimento que não ultrapasse o fim.
 - **Minhas mensalidades:** tabela com treino, vencimento, valor, forma de pagamento, status
   e data em que foi paga. O aluno escolhe uma mensalidade pendente em **Registrar pagamento** e

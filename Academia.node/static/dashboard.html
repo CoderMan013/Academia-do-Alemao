@@ -72,7 +72,7 @@
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Iniciar novo plano</h2>
-            <p class="hint">Escolha o treino e informe o período. As mensalidades serão geradas mês a mês.</p>
+            <p class="hint">Escolha o treino e por quanto tempo você quer treinar. As mensalidades serão geradas mês a mês.</p>
           </div>
         </div>
 
@@ -83,15 +83,22 @@
           </label>
 
           <label class="field">
-            <span class="field__label">Início</span>
-            <input class="input" id="txtInicio" type="date" required />
+            <span class="field__label">Duração do plano</span>
+            <select class="input" id="selDuracao">
+              <option value="1">1 mês</option>
+              <option value="3" selected>3 meses</option>
+              <option value="6">6 meses</option>
+              <option value="12">12 meses</option>
+            </select>
           </label>
 
           <label class="field">
-            <span class="field__label">Fim</span>
-            <input class="input" id="txtFim" type="date" required />
+            <span class="field__label">Início</span>
+            <input class="input" id="txtInicio" type="date" />
           </label>
         </form>
+
+        <p class="hint" id="msgFim" role="note"></p>
 
         <div class="panel__actions">
           <button class="btn btn--primary" id="btnNova" type="button">Iniciar plano</button>
