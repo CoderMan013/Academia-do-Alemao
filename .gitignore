@@ -23,3 +23,7 @@ _tests/*.out
 .idea/
 .DS_Store
 Thumbs.db
+
+# Cópias de referência das versões finais (não versionar)
+Academia.node_FINAL/
+Academia.flask_FINAL/
