@@ -3,7 +3,7 @@ const ErrorResponse = require("../utils/ErrorResponse");
 /**
  * Middleware de validação das requisições de Matricula.
  *
- * A matrícula precisa da modalidade; o aluno vem do token.
+ * A matrícula precisa do treino; o aluno vem do token.
  */
 module.exports = class MatriculaMiddleware {
 
@@ -11,13 +11,26 @@ module.exports = class MatriculaMiddleware {
      * Corpo esperado:
      * {
      *   "matricula": {
-     *     "modalidade": "Muay Thai",
+     *     "treino": "Muay Thai",
      *     "dataInicio": "2026-11-03",     // opcional: hoje
-     *     "duracaoMeses": 3,              // opcional: 3
+     *     "dataFim": "2027-02-03",
      *     "status": "ativa"               // opcional
      *   }
      * }
      */
+    validateCreateBody = (request, response, next) => {
+        console.log("🔷 MatriculaMiddleware.validateCreateBody()");
+        const matricula = request.body?.matricula;
+
+        if (!matricula?.dataFim || String(matricula.dataFim).trim() === "") {
+            throw new ErrorResponse(400, "Erro na validação de dados", {
+                message: "O campo 'dataFim' é obrigatório!"
+            });
+        }
+
+        next();
+    };
+
     validateBody = (request, response, next) => {
         console.log("🔷 MatriculaMiddleware.validateBody()");
         const matricula = request.body?.matricula;
@@ -28,9 +41,9 @@ module.exports = class MatriculaMiddleware {
             });
         }
 
-        if (!matricula.modalidade || String(matricula.modalidade).trim() === "") {
+        if (!matricula.treino || String(matricula.treino).trim() === "") {
             throw new ErrorResponse(400, "Erro na validação de dados", {
-                message: "O campo 'modalidade' é obrigatório!"
+                message: "O campo 'treino' é obrigatório!"
             });
         }
 

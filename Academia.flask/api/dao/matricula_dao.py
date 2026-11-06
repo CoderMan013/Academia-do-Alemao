@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from contextlib import contextmanager
+
 from api.model.matricula import Matricula
 
 """
@@ -12,11 +14,11 @@ class MatriculaDAO:
         print("⬆️  MatriculaDAO.__init__()")
         self.__database = database_dependency
 
-    def create(self, objMatricula: Matricula) -> int:
+    def create(self, objMatricula: Matricula, conn=None) -> int:
         print("🟢 MatriculaDAO.create()")
 
         SQL = """
-            INSERT INTO Matricula (modalidade, dataInicio, dataFim, status, Aluno_idAluno)
+            INSERT INTO Matricula (treino, dataInicio, dataFim, status, Aluno_idAluno)
             VALUES (%s, %s, %s, %s, %s);"""
         params = (
             objMatricula.modalidade,
@@ -26,15 +28,33 @@ class MatriculaDAO:
             objMatricula.aluno.idAluno,
         )
 
-        with self.__database.get_connection() as conn:
+        if conn is None:
+            with self.__database.get_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(SQL, params)
+                    connection.commit()
+                    insert_id = cursor.lastrowid
+        else:
             with conn.cursor() as cursor:
                 cursor.execute(SQL, params)
-                conn.commit()
                 insert_id = cursor.lastrowid
 
         if not insert_id:
             raise Exception("Falha ao inserir matrícula")
         return insert_id
+
+    @contextmanager
+    def transaction(self):
+        """Agrupa a matrícula e suas mensalidades em uma única transação."""
+        conn = self.__database.get_connection()
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def delete(self, objMatricula: Matricula) -> bool:
         print("🟢 MatriculaDAO.delete()")
@@ -53,7 +73,7 @@ class MatriculaDAO:
 
         SQL = """
             UPDATE Matricula
-            SET modalidade = %s, dataInicio = %s, dataFim = %s, status = %s, Aluno_idAluno = %s
+            SET treino = %s, dataInicio = %s, dataFim = %s, status = %s, Aluno_idAluno = %s
             WHERE idMatricula = %s;"""
         params = (
             objMatricula.modalidade,
@@ -76,7 +96,7 @@ class MatriculaDAO:
         print("🟢 MatriculaDAO.findAll()")
 
         SQL = """
-            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+            SELECT m.idMatricula, m.treino AS modalidade, m.dataInicio, m.dataFim, m.status,
                    a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
@@ -106,16 +126,22 @@ class MatriculaDAO:
         """
         print(f"🟢 MatriculaDAO.findByField() - Campo: {field}, Valor: {value}")
 
-        allowed_fields = ["idMatricula", "status", "modalidade", "Aluno_idAluno"]
-        if field not in allowed_fields:
+        field_columns = {
+            "idMatricula": "idMatricula",
+            "status": "status",
+            "modalidade": "treino",
+            "Aluno_idAluno": "Aluno_idAluno",
+        }
+        if field not in field_columns:
             raise ValueError(f"Campo inválido para busca: {field}")
+        column = field_columns[field]
 
         SQL = f"""
-            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+            SELECT m.idMatricula, m.treino AS modalidade, m.dataInicio, m.dataFim, m.status,
                    a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
-            WHERE m.{field} = %s
+            WHERE m.{column} = %s
             ORDER BY m.idMatricula;"""
 
         with self.__database.get_connection() as conn:
@@ -145,13 +171,13 @@ class MatriculaDAO:
 
     def countByAlunoModalidade(self, idAluno: int, modalidade: str,
                                status: str | None = None, ignorar_id: int | None = None) -> int:
-        """Matrículas de um aluno em uma modalidade."""
+        """Matrículas de um aluno em um treino."""
         print("🟢 MatriculaDAO.countByAlunoModalidade()")
 
         SQL = """
             SELECT COUNT(*) AS total
             FROM Matricula
-            WHERE Aluno_idAluno = %s AND modalidade = %s"""
+            WHERE Aluno_idAluno = %s AND treino = %s"""
         params = [idAluno, modalidade]
 
         if status:

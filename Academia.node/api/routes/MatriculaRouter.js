@@ -37,6 +37,7 @@ module.exports = class MatriculaRouter {
         router.post("/",
             this.#jwtMiddleware.validateToken,
             this.#matriculaMiddleware.validateBody,
+            this.#matriculaMiddleware.validateCreateBody,
             this.#matriculaController.store
         );
 

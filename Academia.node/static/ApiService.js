@@ -77,7 +77,8 @@ export default class ApiService {
     }
 
     async put(uri, id, jsonObject) {
-        return await this.#executar("PUT", `${uri}/${id}`, jsonObject);
+        const recurso = id === null || id === undefined ? uri : `${uri}/${id}`;
+        return await this.#executar("PUT", recurso, jsonObject);
     }
 
     async delete(uri, id) {

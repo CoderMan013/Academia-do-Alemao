@@ -3,8 +3,13 @@
  *
  * É a entidade que possui e-mail e senha, portanto é ela que autentica
  * no sistema (a senha é gravada com bcrypt pelo DAO).
+ *
+ * O Model representa e protege os dados do domínio: os atributos privados
+ * só podem ser alterados pelos setters, que validam cada valor antes de
+ * guardá-lo. Assim, Services e DAOs não recebem um Aluno com dados inválidos.
  */
 module.exports = class Aluno {
+    // Campos privados: evitam que o código altere os dados sem passar pelas regras abaixo.
     #idAluno;
     #nomeAluno;
     #email;
@@ -26,6 +31,7 @@ module.exports = class Aluno {
         this.#idAluno = parsed;
     }
 
+    // O nome é limpo de espaços externos e limitado para respeitar a regra do domínio e do banco.
     get nomeAluno() {
         return this.#nomeAluno;
     }
@@ -47,6 +53,7 @@ module.exports = class Aluno {
         this.#nomeAluno = nome;
     }
 
+    // O e-mail é normalizado para que variações de maiúsculas/espaços não criem contas diferentes.
     get email() {
         return this.#email;
     }
@@ -72,6 +79,7 @@ module.exports = class Aluno {
         this.#email = email;
     }
 
+    // A entidade valida a força mínima; o DAO continua responsável por gravar somente o hash.
     get senha() {
         return this.#senha;
     }
@@ -103,6 +111,7 @@ module.exports = class Aluno {
         this.#senha = senha;
     }
 
+    // O campo ativo representa um estado binário no banco: 1 habilitado, 0 desabilitado.
     get ativo() {
         return this.#ativo;
     }

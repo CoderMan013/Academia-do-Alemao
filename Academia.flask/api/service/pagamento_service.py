@@ -3,6 +3,7 @@ import datetime
 
 from api.dao.matricula_dao import MatriculaDAO
 from api.dao.pagamento_dao import PagamentoDAO
+from api.domain.modalidades import preco_mensalidade
 from api.model.pagamento import Pagamento
 from api.utils.error_response import ErrorResponse
 from api.utils.validar import validar
@@ -74,22 +75,37 @@ class PagamentoService:
         """
         print("🟣 PagamentoService.createPagamento()")
 
+        jsonPagamento = jsonPagamento or {}
         pagamento = Pagamento()
+        matricula_id = (jsonPagamento.get("matricula") or {}).get("idMatricula")
+
+        matricula = self._matricula_do_aluno(matricula_id, usuario)
+        status = str(jsonPagamento.get("status") or "pendente").strip().lower()
 
         def preencher():
-            pagamento.valor = jsonPagamento.get("valor")
+            pagamento.valor = preco_mensalidade(matricula["modalidade"])
             pagamento.dataVencimento = jsonPagamento.get("dataVencimento") or PagamentoService.hoje()
-            pagamento.metodo = jsonPagamento.get("metodo") or "Pix"
-            pagamento.status = jsonPagamento.get("status") or "pendente"
-            pagamento.dataPagamento = jsonPagamento.get("dataPagamento")
-            pagamento.matriculaId = (jsonPagamento.get("matricula") or {}).get("idMatricula")
+            pagamento.status = status
+            pagamento.matriculaId = matricula_id
 
         validar(preencher)
 
-        self._matricula_do_aluno(pagamento.matriculaId, usuario)
-
-        if pagamento.status == "pago" and not pagamento.dataPagamento:
-            pagamento.dataPagamento = PagamentoService.hoje()
+        if pagamento.status == "pago":
+            if not jsonPagamento.get("metodo"):
+                raise ErrorResponse(
+                    400,
+                    "Erro na validação de dados",
+                    {"message": "Informe um método válido para pagamentos pagos."}
+                )
+            validar(lambda: setattr(pagamento, "metodo", jsonPagamento["metodo"]))
+            validar(lambda: setattr(
+                pagamento,
+                "dataPagamento",
+                jsonPagamento.get("dataPagamento") or PagamentoService.hoje()
+            ))
+        else:
+            pagamento.metodo = ""
+            pagamento.dataPagamento = None
 
         novo_id = self.__pagamentoDAO.create(pagamento)
         return self.__pagamentoDAO.findById(novo_id)
@@ -107,19 +123,20 @@ class PagamentoService:
         self._matricula_do_aluno(idMatricula, usuario)
         return self.__pagamentoDAO.findByMatricula(idMatricula)
 
-    def findById(self, idPagamento: int) -> dict | None:
+    def findById(self, idPagamento: int, usuario: dict | None = None) -> dict | None:
         print("🟣 PagamentoService.findById()")
 
         pagamento = Pagamento()
         pagamento.idPagamento = idPagamento
 
-        return self.__pagamentoDAO.findById(pagamento.idPagamento)
+        resultado = self.__pagamentoDAO.findById(pagamento.idPagamento)
+        if resultado and usuario is not None:
+            self._autorizar(resultado, usuario)
+        return resultado
 
     def _autorizar(self, pagamento: dict, usuario: dict):
         """Confere se o pagamento pertence a uma matrícula do aluno do token."""
-        id_aluno = self._id_aluno_do_token(usuario)
-
-        if int(pagamento["matricula"]["aluno"]["idAluno"]) != id_aluno:
+        if int(pagamento["matricula"]["aluno"]["idAluno"]) != self._id_aluno_do_token(usuario):
             raise ErrorResponse(
                 403,
                 "Acesso negado",
@@ -128,7 +145,7 @@ class PagamentoService:
 
     def updatePagamento(self, idPagamento: int, jsonPagamento: dict, usuario: dict) -> dict | None:
         """
-        Atualiza valor, vencimento, pagamento, método e status.
+        Atualiza o status e o método, mantendo preço e vencimento sob controle do servidor.
 
         :param idPagamento: int
         :param jsonPagamento: dict
@@ -143,23 +160,34 @@ class PagamentoService:
 
         self._autorizar(atual, usuario)
 
+        jsonPagamento = jsonPagamento or {}
         pagamento = Pagamento()
 
         def preencher():
             pagamento.idPagamento = idPagamento
-            pagamento.valor = jsonPagamento.get("valor", atual["valor"])
-            pagamento.dataVencimento = jsonPagamento.get("dataVencimento") or atual["dataVencimento"]
-            pagamento.metodo = jsonPagamento.get("metodo") or atual["metodo"]
-            pagamento.status = jsonPagamento.get("status") or atual["status"]
-            pagamento.dataPagamento = jsonPagamento.get("dataPagamento", atual["dataPagamento"])
+            pagamento.valor = preco_mensalidade(atual["matricula"]["modalidade"])
+            pagamento.dataVencimento = atual["dataVencimento"]
+            pagamento.status = jsonPagamento.get("status")
             pagamento.matriculaId = atual["matricula"]["idMatricula"]
 
         validar(preencher)
 
-        if pagamento.status == "pago" and not pagamento.dataPagamento:
-            pagamento.dataPagamento = PagamentoService.hoje()
-
-        if pagamento.status != "pago":
+        if pagamento.status == "pago":
+            metodo = jsonPagamento.get("metodo")
+            if not metodo:
+                raise ErrorResponse(
+                    400,
+                    "Erro na validação de dados",
+                    {"message": "Informe um método válido para registrar o pagamento."}
+                )
+            validar(lambda: setattr(pagamento, "metodo", metodo))
+            validar(lambda: setattr(
+                pagamento,
+                "dataPagamento",
+                jsonPagamento.get("dataPagamento") or PagamentoService.hoje()
+            ))
+        else:
+            pagamento.metodo = ""
             pagamento.dataPagamento = None
 
         atualizou = self.__pagamentoDAO.update(pagamento)

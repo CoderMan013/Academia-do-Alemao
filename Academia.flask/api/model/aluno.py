@@ -16,6 +16,8 @@ class Aluno:
         """
         Inicializa todos os atributos como atributos de instância.
         """
+        # O prefixo duplo restringe o acesso direto; os valores são alterados
+        # pelos setters, que concentram as regras de domínio.
         self.__idAluno = None
         self.__nomeAluno = None
         self.__email = None
@@ -40,6 +42,7 @@ class Aluno:
         :param valor: int - Número inteiro positivo representando o ID do aluno.
         :raises ValueError: se não for número inteiro positivo.
         """
+        # Converte entradas numéricas e rejeita valores que não sejam inteiros válidos.
         parsed = para_inteiro(valor, "idAluno")
 
         if parsed <= 0:
@@ -68,6 +71,7 @@ class Aluno:
         if not isinstance(valor, str):
             raise ValueError("nomeAluno deve ser uma string.")
 
+        # Remove espaços externos antes de verificar tamanho e guardar o nome.
         nome = valor.strip()
 
         if len(nome) < 3:
@@ -100,6 +104,7 @@ class Aluno:
         if not isinstance(valor, str):
             raise ValueError("email deve ser uma string.")
 
+        # Normalização para minúsculas torna as comparações de e-mail consistentes.
         email = valor.strip().lower()
 
         if email == "":
@@ -108,6 +113,7 @@ class Aluno:
         if len(email) > 64:
             raise ValueError("email deve ter no máximo 64 caracteres.")
 
+        # Verifica o formato básico sem substituir as validações do banco.
         email_regex = r"^[^\s@]+@[^\s@]+\.[^\s@]+$"
         if not re.match(email_regex, email):
             raise ValueError("email em formato inválido.")
@@ -139,6 +145,7 @@ class Aluno:
         if not isinstance(valor, str):
             raise ValueError("senha deve ser uma string.")
 
+        # Aplica as regras de complexidade antes de a senha chegar ao DAO.
         senha = valor.strip()
 
         if senha == "":
@@ -153,7 +160,8 @@ class Aluno:
         if not any(c.isdigit() for c in senha):
             raise ValueError("senha deve conter pelo menos um número.")
 
-        especiais = "!@#$%^&*(),.?\":{}|<>_-+"
+        # O conjunto permitido é o mesmo usado para reconhecer o caractere especial.
+        especiais = "!@#$%^&*(),.OK:\":{}|<>_-+"
         if not any(c in especiais for c in senha):
             raise ValueError("senha deve conter pelo menos um caractere especial.")
 
@@ -177,6 +185,7 @@ class Aluno:
         :param valor: int - 0 ou 1
         :raises ValueError: se não for 0 ou 1.
         """
+        # Converte o valor recebido e limita o status aos dois estados do sistema.
         parsed = para_inteiro(valor, "ativo")
 
         if parsed not in (0, 1):

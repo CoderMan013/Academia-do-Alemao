@@ -1,9 +1,9 @@
 /**
  * DAO da tabela Pagamento.
  *
- * As leituras usam JOIN com Matricula e Aluno para devolver a modalidade e
- * o dono do pagamento. O status "atrasado" é calculado na consulta: um
- * pagamento pendente com vencimento no passado aparece como atrasado.
+ * As leituras usam JOIN com Matricula e Aluno para devolver o treino e
+ * o dono do pagamento. Registros antigos marcados como "atrasado" são
+ * apresentados como pendentes enquanto esse status não é usado na tela.
  */
 module.exports = class PagamentoDAO {
     #database;
@@ -13,16 +13,13 @@ module.exports = class PagamentoDAO {
         this.#database = databaseInstance;
     }
 
-    /** SQL base das leituras (com o status calculado). */
+    /** SQL base das leituras, incluindo matrícula e aluno. */
     static get SELECT_BASE() {
         return `
             SELECT p.idPagamento, p.valor, p.dataVencimento, p.dataPagamento,
                    p.metodo,
-                   CASE
-                       WHEN p.status = 'pendente' AND p.dataVencimento < CURDATE() THEN 'atrasado'
-                       ELSE p.status
-                   END AS status,
-                   m.idMatricula, m.modalidade,
+                   CASE WHEN p.status = 'atrasado' THEN 'pendente' ELSE p.status END AS status,
+                   m.idMatricula, m.treino,
                    a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Pagamento p
             JOIN Matricula m ON m.idMatricula = p.Matricula_idMatricula
@@ -58,6 +55,33 @@ module.exports = class PagamentoDAO {
         }
 
         return resultado.insertId;
+    };
+
+    /**
+     * Cria em lote as mensalidades pendentes de uma matrícula.
+     * @param {Array<{valor: number, dataVencimento: string, matriculaId: number}>} mensalidades
+     */
+    createMensalidades = async (mensalidades) => {
+        console.log("🟢 PagamentoDAO.createMensalidades()");
+        if (mensalidades.length === 0) return;
+
+        const placeholders = mensalidades.map(() => "(?, ?, NULL, '', 'pendente', ?)").join(", ");
+        const params = mensalidades.flatMap((mensalidade) => [
+            mensalidade.valor,
+            mensalidade.dataVencimento,
+            mensalidade.matriculaId
+        ]);
+        const SQL = `
+            INSERT INTO Pagamento
+                (valor, dataVencimento, dataPagamento, metodo, status, Matricula_idMatricula)
+            VALUES ${placeholders};`;
+
+        const pool = await this.#database.getPool();
+        const [resultado] = await pool.execute(SQL, params);
+
+        if (resultado.affectedRows !== mensalidades.length) {
+            throw new Error("Falha ao gerar todas as mensalidades da matrícula");
+        }
     };
 
     /** @param {object} objPagamento @returns {Promise<boolean>} */
@@ -165,7 +189,7 @@ module.exports = class PagamentoDAO {
         status: linha.status,
         matricula: {
             idMatricula: Number(linha.idMatricula),
-            modalidade: linha.modalidade,
+            treino: linha.treino,
             aluno: {
                 idAluno: Number(linha.idAluno),
                 nomeAluno: linha.nomeAluno,

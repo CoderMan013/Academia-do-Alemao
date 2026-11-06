@@ -19,10 +19,10 @@ module.exports = class MatriculaDAO {
         console.log("🟢 MatriculaDAO.create()");
 
         const SQL = `
-            INSERT INTO Matricula (modalidade, dataInicio, dataFim, status, Aluno_idAluno)
+            INSERT INTO Matricula (treino, dataInicio, dataFim, status, Aluno_idAluno)
             VALUES (?, ?, ?, ?, ?);`;
         const params = [
-            objMatricula.modalidade,
+            objMatricula.treino,
             objMatricula.dataInicio,
             objMatricula.dataFim,
             objMatricula.status,
@@ -57,10 +57,10 @@ module.exports = class MatriculaDAO {
 
         const SQL = `
             UPDATE Matricula
-            SET modalidade = ?, dataInicio = ?, dataFim = ?, status = ?, Aluno_idAluno = ?
+            SET treino = ?, dataInicio = ?, dataFim = ?, status = ?, Aluno_idAluno = ?
             WHERE idMatricula = ?;`;
         const params = [
-            objMatricula.modalidade,
+            objMatricula.treino,
             objMatricula.dataInicio,
             objMatricula.dataFim,
             objMatricula.status,
@@ -79,7 +79,7 @@ module.exports = class MatriculaDAO {
         console.log("🟢 MatriculaDAO.findAll()");
 
         const SQL = `
-            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+            SELECT m.idMatricula, m.treino, m.dataInicio, m.dataFim, m.status,
                    a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
@@ -106,20 +106,20 @@ module.exports = class MatriculaDAO {
     };
 
     /**
-     * @param {string} field - idMatricula | status | modalidade | Aluno_idAluno
+     * @param {string} field - idMatricula | status | treino | Aluno_idAluno
      * @param {*} value
      * @returns {Promise<Array>}
      */
     findByField = async (field, value) => {
         console.log(`🟢 MatriculaDAO.findByField() - Campo: ${field}, Valor: ${value}`);
 
-        const allowedFields = ["idMatricula", "status", "modalidade", "Aluno_idAluno"];
+        const allowedFields = ["idMatricula", "status", "treino", "Aluno_idAluno"];
         if (!allowedFields.includes(field)) {
             throw new Error(`Campo inválido para busca: ${field}`);
         }
 
         const SQL = `
-            SELECT m.idMatricula, m.modalidade, m.dataInicio, m.dataFim, m.status,
+            SELECT m.idMatricula, m.treino, m.dataInicio, m.dataFim, m.status,
                    a.idAluno, a.nomeAluno, a.email AS emailAluno
             FROM Matricula m
             JOIN Aluno a ON a.idAluno = m.Aluno_idAluno
@@ -156,21 +156,21 @@ module.exports = class MatriculaDAO {
     };
 
     /**
-     * Matrículas de um aluno em uma modalidade.
+     * Matrículas de um aluno em um treino.
      * @param {number} idAluno
-     * @param {string} modalidade
+     * @param {string} treino
      * @param {string|null} status
      * @param {number|null} ignorarId - id que não deve ser contado (usado no update)
      * @returns {Promise<number>}
      */
-    countByAlunoModalidade = async (idAluno, modalidade, status = null, ignorarId = null) => {
-        console.log("🟢 MatriculaDAO.countByAlunoModalidade()");
+    countByAlunoTreino = async (idAluno, treino, status = null, ignorarId = null) => {
+        console.log("🟢 MatriculaDAO.countByAlunoTreino()");
 
         let SQL = `
             SELECT COUNT(*) AS total
             FROM Matricula
-            WHERE Aluno_idAluno = ? AND modalidade = ?`;
-        const params = [idAluno, modalidade];
+            WHERE Aluno_idAluno = ? AND treino = ?`;
+        const params = [idAluno, treino];
 
         if (status) {
             SQL += " AND status = ?";
@@ -191,7 +191,7 @@ module.exports = class MatriculaDAO {
     /** Monta o objeto aninhado (aluno) a partir da linha do JOIN. */
     static montarObjeto = (linha) => ({
         idMatricula: Number(linha.idMatricula),
-        modalidade: linha.modalidade,
+        treino: linha.treino,
         dataInicio: String(linha.dataInicio).slice(0, 10),
         dataFim: String(linha.dataFim).slice(0, 10),
         status: linha.status,

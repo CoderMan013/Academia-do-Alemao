@@ -3,26 +3,29 @@ import datetime
 
 from api.dao.aluno_dao import AlunoDAO
 from api.dao.matricula_dao import MatriculaDAO
-from api.domain.modalidades import validar_duracao
+from api.dao.pagamento_dao import PagamentoDAO
+from api.domain.modalidades import preco_mensalidade, validar_duracao
 from api.model.aluno import Aluno
 from api.model.matricula import Matricula
+from api.model.pagamento import Pagamento
 from api.utils.error_response import ErrorResponse
 from api.utils.validar import validar
 
 """
 Classe responsável pela camada de serviço da entidade Matricula.
 
-Recebe MatriculaDAO (CRUD) e AlunoDAO (valida se o aluno existe).
-Como o sistema tem um único papel logado (aluno), o dono da matrícula
-vem sempre do token.
+Recebe os DAOs de matrícula, aluno e pagamento. Como o sistema tem um
+único papel logado (aluno), o dono da matrícula vem sempre do token.
 """
 class MatriculaService:
     def __init__(self,
                  matricula_dao_dependency: MatriculaDAO,
-                 aluno_dao_dependency: AlunoDAO):
+                 aluno_dao_dependency: AlunoDAO,
+                 pagamento_dao_dependency: PagamentoDAO):
         print("⬆️  MatriculaService.__init__()")
         self.__matriculaDAO = matricula_dao_dependency
         self.__alunoDAO = aluno_dao_dependency
+        self.__pagamentoDAO = pagamento_dao_dependency
 
     @staticmethod
     def hoje() -> str:
@@ -34,9 +37,8 @@ class MatriculaService:
         """
         Soma meses a uma data YYYY-MM-DD (retorna YYYY-MM-DD).
 
-        Reproduz o Date.UTC do JavaScript usado na API em Node: quando o dia
-        não existe no mês de destino (ex.: 31/01 + 1 mês), a data avança para
-        o mês seguinte.
+        Quando o dia não existe no mês de destino, usa o último dia daquele
+        mês, mantendo o dia original para cálculos de meses seguintes.
         """
         ano, mes, dia = (int(parte) for parte in dataInicio.split("-"))
 
@@ -44,10 +46,39 @@ class MatriculaService:
         novo_ano, novo_mes = divmod(total_meses, 12)
         novo_mes += 1
 
-        primeiro_dia = datetime.date(novo_ano, novo_mes, 1)
-        resultado = primeiro_dia + datetime.timedelta(days=dia - 1)
+        if novo_mes == 12:
+            proximo_mes = datetime.date(novo_ano + 1, 1, 1)
+        else:
+            proximo_mes = datetime.date(novo_ano, novo_mes + 1, 1)
+        ultimo_dia = (proximo_mes - datetime.timedelta(days=1)).day
 
-        return resultado.isoformat()
+        return datetime.date(novo_ano, novo_mes, min(dia, ultimo_dia)).isoformat()
+
+    @staticmethod
+    def gerarVencimentos(dataInicio: str, dataFim: str) -> list[str]:
+        """Gera vencimentos mensais inclusivos sem deriva após meses curtos."""
+        try:
+            inicio = datetime.date.fromisoformat(dataInicio)
+            fim = datetime.date.fromisoformat(dataFim)
+        except (TypeError, ValueError):
+            raise ValueError("datas inválidas, use o formato YYYY-MM-DD.")
+
+        if fim < inicio:
+            raise ValueError("dataFim não pode ser anterior a dataInicio.")
+
+        vencimentos = []
+        meses = 0
+        while True:
+            total_meses = (inicio.year * 12 + inicio.month - 1) + meses
+            if total_meses // 12 > 9999:
+                break
+            vencimento = MatriculaService.somarMeses(dataInicio, meses)
+            if datetime.date.fromisoformat(vencimento) > fim:
+                break
+            vencimentos.append(vencimento)
+            meses += 1
+
+        return vencimentos
 
     @staticmethod
     def _id_aluno_do_token(usuario: dict) -> int:
@@ -82,8 +113,9 @@ class MatriculaService:
 
         Regras:
         - o aluno precisa existir;
-        - o aluno não pode ter outra matrícula ativa na MESMA modalidade;
-        - se dataFim não for informada, é calculada com duracaoMeses (padrão 3).
+        - o aluno não pode ter outra matrícula ativa no MESMO treino;
+        - dataFim deve ser informada e não pode ser anterior à dataInicio;
+        - matrículas ativas geram mensalidades atomicamente.
 
         :param jsonMatricula: dict
         :param usuario: dict - usuário autenticado (vem do token)
@@ -93,18 +125,15 @@ class MatriculaService:
 
         id_aluno = self._id_aluno_do_token(usuario)
         matricula = Matricula()
-        duracao = 3
+        duracao = validar_duracao(jsonMatricula.get("duracaoMeses"))
 
         def preencher():
-            nonlocal duracao
             matricula.modalidade = jsonMatricula.get("modalidade")
             matricula.status = jsonMatricula.get("status") or "ativa"
             matricula.dataInicio = jsonMatricula.get("dataInicio") or MatriculaService.hoje()
-            duracao = validar_duracao(jsonMatricula.get("duracaoMeses"))
-            matricula.dataFim = jsonMatricula.get("dataFim") or MatriculaService.somarMeses(
-                matricula.dataInicio,
-                duracao
-            )
+            if not jsonMatricula.get("dataFim"):
+                raise ValueError("dataFim é obrigatória.")
+            matricula.dataFim = jsonMatricula.get("dataFim")
 
         validar(preencher)
 
@@ -128,10 +157,29 @@ class MatriculaService:
                 raise ErrorResponse(
                     400,
                     "Matrícula duplicada",
-                    {"message": f"O aluno {aluno_db['nomeAluno']} já possui uma matrícula ativa em {matricula.modalidade}"}
+                    {"message": f"O aluno {aluno_db['nomeAluno']} já possui um treino ativo de {matricula.modalidade}"}
                 )
 
-        novo_id = self.__matriculaDAO.create(matricula)
+        if matricula.status == "ativa":
+            vencimentos = MatriculaService.gerarVencimentos(
+                matricula.dataInicio,
+                matricula.dataFim,
+            )
+            valor = preco_mensalidade(matricula.modalidade)
+
+            with self.__matriculaDAO.transaction() as conn:
+                novo_id = self.__matriculaDAO.create(matricula, conn=conn)
+                for vencimento in vencimentos:
+                    pagamento = Pagamento()
+                    pagamento.valor = valor
+                    pagamento.dataVencimento = vencimento
+                    pagamento.dataPagamento = None
+                    pagamento.metodo = ""
+                    pagamento.status = "pendente"
+                    pagamento.matriculaId = novo_id
+                    self.__pagamentoDAO.create(pagamento, conn=conn)
+        else:
+            novo_id = self.__matriculaDAO.create(matricula)
 
         return {
             "idMatricula": novo_id,
@@ -151,17 +199,21 @@ class MatriculaService:
         print("🟣 MatriculaService.findMinhas()")
         return self.__matriculaDAO.findByAluno(idAluno)
 
-    def findById(self, idMatricula: int) -> dict | None:
+    def findById(self, idMatricula: int, usuario: dict | None = None) -> dict | None:
         print("🟣 MatriculaService.findById()")
 
         matricula = Matricula()
         matricula.idMatricula = idMatricula
 
-        return self.__matriculaDAO.findById(matricula.idMatricula)
+        resultado = self.__matriculaDAO.findById(matricula.idMatricula)
+        if resultado and usuario is not None:
+            self._autorizar(resultado, usuario)
+        return resultado
 
     def _autorizar(self, matricula: dict, usuario: dict):
         """Confere se o aluno do token é o dono da matrícula."""
-        if int((usuario or {}).get("idAluno") or 0) != int(matricula["aluno"]["idAluno"]):
+        id_aluno = self._id_aluno_do_token(usuario)
+        if id_aluno != int(matricula["aluno"]["idAluno"]):
             raise ErrorResponse(
                 403,
                 "Acesso negado",
@@ -170,7 +222,7 @@ class MatriculaService:
 
     def updateMatricula(self, idMatricula: int, jsonMatricula: dict, usuario: dict) -> dict | None:
         """
-        Atualiza modalidade, datas e status da matrícula.
+        Atualiza treino, datas e status da matrícula.
 
         :param idMatricula: int
         :param jsonMatricula: dict
@@ -220,7 +272,7 @@ class MatriculaService:
                 raise ErrorResponse(
                     400,
                     "Matrícula duplicada",
-                    {"message": f"O aluno {aluno_db['nomeAluno']} já possui uma matrícula ativa em {matricula.modalidade}"}
+                    {"message": f"O aluno {aluno_db['nomeAluno']} já possui um treino ativo de {matricula.modalidade}"}
                 )
 
         atualizou = self.__matriculaDAO.update(matricula)

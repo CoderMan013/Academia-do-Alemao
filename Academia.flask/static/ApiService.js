@@ -80,6 +80,10 @@ export default class ApiService {
         return await this.#executar("PUT", `${uri}/${id}`, jsonObject);
     }
 
+    async putJson(uri, jsonObject) {
+        return await this.#executar("PUT", uri, jsonObject);
+    }
+
     async delete(uri, id) {
         return await this.#executar("DELETE", `${uri}/${id}`);
     }

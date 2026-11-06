@@ -12,7 +12,7 @@ registrar, listar, alterar e excluir os próprios pagamentos.
 """
 
 METODOS = ["Pix", "Cartão", "Dinheiro"]
-STATUS = ["pendente", "pago", "atrasado"]
+STATUS = ["pendente", "pago"]
 
 
 def _sem_acento(valor) -> str:
@@ -120,7 +120,11 @@ class Pagamento:
 
     @metodo.setter
     def metodo(self, valor):
-        """Regra de domínio: Pix | Cartão | Dinheiro."""
+        """Regra de domínio: método permitido ou vazio enquanto estiver pendente."""
+        if valor == "":
+            self.__metodo = ""
+            return
+
         nome = next((item for item in METODOS if _sem_acento(item) == _sem_acento(valor)), None)
 
         if not nome:
@@ -135,7 +139,7 @@ class Pagamento:
 
     @status.setter
     def status(self, valor):
-        """Regra de domínio: pendente | pago | atrasado."""
+        """Regra de domínio: pendente | pago."""
         nome = next((item for item in STATUS if _sem_acento(item) == _sem_acento(valor)), None)
 
         if not nome:

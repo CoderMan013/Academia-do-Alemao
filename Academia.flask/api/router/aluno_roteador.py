@@ -22,6 +22,8 @@ class AlunoRoteador:
         :param aluno_control: Controlador responsável pela lógica de negócio da entidade Aluno.
         """
         print("⬆️  AlunoRoteador.__init__()")
+        # O Router recebe as dependências prontas; cada rota combina autenticação,
+        # validação de entrada e chamada ao método adequado do Controller.
         self.__jwt_middleware = jwt_middleware
         self.__aluno_middleware = aluno_middleware
         self.__aluno_control = aluno_control
@@ -43,6 +45,8 @@ class AlunoRoteador:
         """
 
         # POST / -> cria um aluno
+        # Os decorators são executados de fora para dentro: o token é validado
+        # antes da validação do corpo e da chamada ao Controller.
         @self.__blueprint.route('/', methods=['POST'], strict_slashes=False)
         @self.__jwt_middleware.validate_token
         @self.__aluno_middleware.validate_body
@@ -51,6 +55,7 @@ class AlunoRoteador:
             return self.__aluno_control.store()
 
         # GET / -> lista todos os alunos
+        # Exige sessão porque a listagem de alunos não é uma rota pública.
         @self.__blueprint.route('/', methods=['GET'], strict_slashes=False)
         @self.__jwt_middleware.validate_token
         def index():
@@ -58,6 +63,7 @@ class AlunoRoteador:
             return self.__aluno_control.index()
 
         # GET /<idAluno> -> retorna um aluno específico
+        # O conversor <int:...> rejeita IDs que não sejam números inteiros na URL.
         @self.__blueprint.route('/<int:idAluno>', methods=['GET'])
         @self.__jwt_middleware.validate_token
         @self.__aluno_middleware.validate_id_param
@@ -70,6 +76,7 @@ class AlunoRoteador:
             return self.__aluno_control.show(idAluno)
 
         # PUT /<idAluno> -> atualiza um aluno
+        # Além da autenticação, valida o ID e os campos obrigatórios; senha é opcional.
         @self.__blueprint.route('/<int:idAluno>', methods=['PUT'])
         @self.__jwt_middleware.validate_token
         @self.__aluno_middleware.validate_id_param
@@ -79,6 +86,7 @@ class AlunoRoteador:
             return self.__aluno_control.update(idAluno)
 
         # DELETE /<idAluno> -> remove um aluno
+        # A regra que bloqueia exclusão de aluno com matrícula fica no Service.
         @self.__blueprint.route('/<int:idAluno>', methods=['DELETE'])
         @self.__jwt_middleware.validate_token
         @self.__aluno_middleware.validate_id_param
@@ -90,5 +98,5 @@ class AlunoRoteador:
             """
             return self.__aluno_control.destroy(idAluno)
 
-        # Retorna o blueprint configurado, para ser registrado no app Flask
+        # O Server registra este Blueprint sob o prefixo /api/v1/alunos.
         return self.__blueprint

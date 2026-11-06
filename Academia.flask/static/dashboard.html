@@ -28,6 +28,7 @@
 
       <div class="app__actions">
         <button class="btn btn--ghost btn--tiny" id="btnAtualizar" type="button">Atualizar</button>
+        <button class="btn btn--ghost btn--tiny" id="btnPerfil" type="button" aria-label="Editar perfil">Editar perfil</button>
         <button class="btn btn--ghost btn--tiny" id="btnSair" type="button">Sair</button>
       </div>
     </header>
@@ -39,8 +40,8 @@
       <section class="card panel">
         <div class="panel__head">
           <div>
-            <h2 class="panel__title">Minhas modalidades</h2>
-            <p class="hint">Cada cartão é uma turma: modalidade e tempo restante do plano.</p>
+            <h2 class="panel__title">Meus treinos</h2>
+            <p class="hint">Cada cartão mostra um treino e o tempo restante do plano.</p>
           </div>
           <p class="hint" id="msgAluno" role="status"></p>
         </div>
@@ -52,13 +53,13 @@
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Iniciar novo plano</h2>
-            <p class="hint">Escolha a modalidade e por quanto tempo você quer treinar.</p>
+            <p class="hint">Escolha o treino e por quanto tempo você quer treinar.</p>
           </div>
         </div>
 
         <form class="form-grid" id="formNova" autocomplete="off">
           <label class="field">
-            <span class="field__label">Modalidade</span>
+            <span class="field__label">Treino</span>
             <select class="input" id="selModalidade"></select>
           </label>
 
@@ -89,29 +90,19 @@
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Minhas mensalidades</h2>
-            <p class="hint">Cada matrícula tem várias mensalidades. Marque como paga quando acertar.</p>
+            <p class="hint">Cada matrícula tem várias mensalidades. Selecione uma pendente para pagar.</p>
           </div>
           <p class="hint" id="msgPagamentos" role="status"></p>
         </div>
 
         <div class="table-wrap" id="tabelaPagamentos"></div>
 
-        <h3 class="panel__subtitle">Registrar mensalidade</h3>
+        <h3 class="panel__subtitle">Registrar pagamento</h3>
 
         <form class="form-grid" id="formPagamento" autocomplete="off">
           <label class="field">
-            <span class="field__label">Matrícula</span>
-            <select class="input" id="selMatriculaPagamento"></select>
-          </label>
-
-          <label class="field">
-            <span class="field__label">Valor (R$)</span>
-            <input class="input" id="txtValor" type="number" min="0" max="100000" step="0.01" placeholder="120.00" />
-          </label>
-
-          <label class="field">
-            <span class="field__label">Vencimento</span>
-            <input class="input" id="txtVencimento" type="date" />
+            <span class="field__label">Mensalidade pendente</span>
+            <select class="input" id="selPagamentoPendente"></select>
           </label>
 
           <label class="field">
@@ -132,10 +123,35 @@
     </div>
   </div>
 
+  <div class="modal" id="modalPerfil" hidden>
+    <div class="card modal__box">
+      <h3 class="modal__title">Editar dados da conta</h3>
+      <form class="form-grid" id="formPerfil" autocomplete="off">
+        <label class="field">
+          <span class="field__label">E-mail</span>
+          <input class="input" id="txtEmailPerfil" type="email" maxlength="64" required />
+        </label>
+        <label class="field">
+          <span class="field__label">Senha atual</span>
+          <input class="input" id="txtSenhaAtual" type="password" required />
+        </label>
+        <label class="field">
+          <span class="field__label">Nova senha (opcional)</span>
+          <input class="input" id="txtNovaSenha" type="password" />
+        </label>
+        <p class="hint" id="msgPerfil" role="status"></p>
+        <div class="modal__actions">
+          <button class="btn btn--ghost btn--tiny" id="btnCancelarPerfil" type="button">Cancelar</button>
+          <button class="btn btn--primary btn--tiny" id="btnSalvarPerfil" type="submit">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Confirmação de saída da turma -->
   <div class="modal" id="modalRemover" hidden>
     <div class="card modal__box">
-      <h3 class="modal__title">Sair da modalidade</h3>
+      <h3 class="modal__title">Sair do treino</h3>
       <p class="modal__text" id="textoRemocao">Tem certeza que deseja remover esta matrícula?</p>
       <p class="modal__text">As mensalidades dessa matrícula também serão apagadas.</p>
       <div class="modal__actions">

@@ -1,10 +1,10 @@
 const Aluno = require("./Aluno");
-const { validarModalidade } = require("../domain/Modalidades");
+const { validarTreino } = require("../domain/Treinos");
 
 /**
  * Entidade Matricula: a tabela do meio do projeto.
  *
- * Relaciona o Aluno à modalidade cursada e guarda o período do plano.
+ * Relaciona o aluno ao treino escolhido e guarda o período do plano.
  * Cada matrícula pode ter vários pagamentos (mensalidades).
  */
 module.exports = class Matricula {
@@ -12,21 +12,38 @@ module.exports = class Matricula {
     #dataInicio;
     #dataFim;
     #status;
-    #modalidade;
+    #treino;
     #aluno;
 
     /** Converte Date/string para o formato YYYY-MM-DD. */
     static normalizarData(valor) {
         if (valor instanceof Date) {
+            if (Number.isNaN(valor.getTime())) {
+                throw new Error("data inválida, use o formato YYYY-MM-DD.");
+            }
             return valor.toISOString().slice(0, 10);
         }
         if (typeof valor === "string") {
             const texto = valor.trim();
-            const data = new Date(`${texto}T00:00:00`);
-            if (Number.isNaN(data.getTime())) {
+            const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto);
+            if (!partes) {
                 throw new Error("data inválida, use o formato YYYY-MM-DD.");
             }
-            return texto.slice(0, 10);
+            const [, anoTexto, mesTexto, diaTexto] = partes;
+            const ano = Number(anoTexto);
+            const mes = Number(mesTexto);
+            const dia = Number(diaTexto);
+            const data = new Date(Date.UTC(ano, mes - 1, dia));
+            if (
+                ano < 1000 ||
+                ano > 9999 ||
+                data.getUTCFullYear() !== ano ||
+                data.getUTCMonth() !== mes - 1 ||
+                data.getUTCDate() !== dia
+            ) {
+                throw new Error("data inválida, use o formato YYYY-MM-DD.");
+            }
+            return texto;
         }
         throw new Error("data deve ser uma string no formato YYYY-MM-DD.");
     }
@@ -84,16 +101,16 @@ module.exports = class Matricula {
         this.#status = status;
     }
 
-    get modalidade() {
-        return this.#modalidade;
+    get treino() {
+        return this.#treino;
     }
 
     /** @param {string} valor - Musculação | Cross Fit | Muay Thai | Karatê | Boxe */
-    set modalidade(valor) {
+    set treino(valor) {
         if (typeof valor !== "string") {
-            throw new Error("modalidade deve ser uma string.");
+            throw new Error("treino deve ser uma string.");
         }
-        this.#modalidade = validarModalidade(valor);
+        this.#treino = validarTreino(valor);
     }
 
     get aluno() {

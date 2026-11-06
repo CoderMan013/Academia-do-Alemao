@@ -6,7 +6,7 @@ from flask_cors import CORS
 from werkzeug.exceptions import HTTPException, NotFound
 
 from api.database.mysql_database import MysqlDatabase
-from api.domain.modalidades import MODALIDADES, DURACOES
+from api.domain.modalidades import MODALIDADES, DURACOES, preco_mensalidade
 from api.utils.error_response import ErrorResponse
 from api.utils.logger import Logger
 
@@ -70,7 +70,7 @@ class Server:
         self.__matricula_middleware = MatriculaMiddleware()
         self.__pagamento_middleware = PagamentoMiddleware()
 
-        # 🔹 DAOs, Services e Controls serão inicializados após conexão com DB
+        # 🔹 Componentes dos módulos serão inicializados após conexão com o banco
         self.__aluno_dao = None
         self.__matricula_dao = None
         self.__pagamento_dao = None
@@ -114,37 +114,23 @@ class Server:
 
         self.__db_connection.connect()
 
-        # 🔹 DAOs compartilhados entre os services
-        self.__aluno_dao = AlunoDAO(self.__db_connection)
-        self.__matricula_dao = MatriculaDAO(self.__db_connection)
-        self.__pagamento_dao = PagamentoDAO(self.__db_connection)
-
-        # 🔹 Services
-        self.__aluno_service = AlunoService(self.__aluno_dao, self.__matricula_dao)
-        self.__matricula_service = MatriculaService(self.__matricula_dao, self.__aluno_dao)
-        self.__pagamento_service = PagamentoService(self.__pagamento_dao, self.__matricula_dao)
-        self.__auth_service = AuthService(self.__aluno_dao, self.__aluno_service)
-
-        # 🔹 Controls
-        self.__auth_control = AuthControl(self.__auth_service)
-        self.__aluno_control = AlunoControl(self.__aluno_service)
-        self.__matricula_control = MatriculaControl(self.__matricula_service)
-        self.__pagamento_control = PagamentoControl(self.__pagamento_service)
-
-        # 🔹 Configuração dos módulos
-        self.__setup_auth()
+        # 🔹 Cada módulo monta seus componentes e registra suas próprias rotas.
+        # A ordem respeita as dependências compartilhadas entre os services.
         self.__setup_aluno()
-        self.__setup_matricula()
         self.__setup_pagamento()
+        self.__setup_matricula()
+        self.__setup_auth()
         self.__setup_modalidades()
 
         # 🔹 Middleware global de tratamento de erros
         self.__error_middleware()
 
     def __setup_auth(self):
-        """Configura o módulo de autenticação em /api/v1/auth"""
+        """Configura o módulo Auth (Service, Control e Router)."""
         print("⬆️  Setup Auth")
 
+        self.__auth_service = AuthService(self.__aluno_dao, self.__aluno_service)
+        self.__auth_control = AuthControl(self.__auth_service)
         auth_router = AuthRoteador(
             self.__jwt_middleware,
             self.__auth_middleware,
@@ -154,8 +140,13 @@ class Server:
         self.__app.register_blueprint(auth_router.create_routes(), url_prefix="/api/v1/auth")
 
     def __setup_aluno(self):
-        """Configura o módulo Aluno (DAO, Service, Control, Router)"""
+        """Configura o módulo Aluno (DAO, Service, Control e Router)."""
         print("⬆️  Setup Aluno")
+
+        self.__aluno_dao = AlunoDAO(self.__db_connection)
+        self.__matricula_dao = MatriculaDAO(self.__db_connection)
+        self.__aluno_service = AlunoService(self.__aluno_dao, self.__matricula_dao)
+        self.__aluno_control = AlunoControl(self.__aluno_service)
 
         aluno_router = AlunoRoteador(
             self.__jwt_middleware,
@@ -166,8 +157,15 @@ class Server:
         self.__app.register_blueprint(aluno_router.create_routes(), url_prefix="/api/v1/alunos")
 
     def __setup_matricula(self):
-        """Configura o módulo Matrícula em /api/v1/matriculas"""
+        """Configura o módulo Matrícula (Service, Control e Router)."""
         print("⬆️  Setup Matrícula")
+
+        self.__matricula_service = MatriculaService(
+            self.__matricula_dao,
+            self.__aluno_dao,
+            self.__pagamento_dao
+        )
+        self.__matricula_control = MatriculaControl(self.__matricula_service)
 
         matricula_router = MatriculaRoteador(
             self.__jwt_middleware,
@@ -178,8 +176,15 @@ class Server:
         self.__app.register_blueprint(matricula_router.create_routes(), url_prefix="/api/v1/matriculas")
 
     def __setup_pagamento(self):
-        """Configura o módulo Pagamento em /api/v1/pagamentos"""
+        """Configura o módulo Pagamento (DAO, Service, Control e Router)."""
         print("⬆️  Setup Pagamento")
+
+        self.__pagamento_dao = PagamentoDAO(self.__db_connection)
+        self.__pagamento_service = PagamentoService(
+            self.__pagamento_dao,
+            self.__matricula_dao
+        )
+        self.__pagamento_control = PagamentoControl(self.__pagamento_service)
 
         pagamento_router = PagamentoRoteador(
             self.__jwt_middleware,
@@ -202,7 +207,10 @@ class Server:
                 "success": True,
                 "message": "Busca realizada com sucesso",
                 "data": {
-                    "modalidades": [{"nome": nome} for nome in MODALIDADES],
+                    "modalidades": [
+                        {"nome": nome, "valorMensalidade": preco_mensalidade(nome)}
+                        for nome in MODALIDADES
+                    ],
                     "duracoes": DURACOES,
                 },
             }), 200

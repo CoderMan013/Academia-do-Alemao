@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 from api.service.auth_service import AuthService
 
@@ -34,3 +34,17 @@ class AuthControl:
             "message": "Cadastro realizado com sucesso",
             "data": resultado
         }), 201
+
+    def perfil(self):
+        """PUT /api/v1/auth/perfil -> atualiza os dados do aluno autenticado."""
+        print("🔵 AuthControl.perfil()")
+        resultado = self.__auth_service.atualizarPerfil(
+            getattr(g, "usuario", None) or {},
+            request.get_json(silent=True) or {},
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Dados atualizados com sucesso",
+            "data": resultado
+        }), 200

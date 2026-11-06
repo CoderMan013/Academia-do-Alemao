@@ -5,7 +5,7 @@
  * registrar, listar, alterar e excluir os próprios pagamentos.
  */
 const METODOS = ["Pix", "Cartão", "Dinheiro"];
-const STATUS = ["pendente", "pago", "atrasado"];
+const STATUS = ["pendente", "pago"];
 
 /** Remove acentos e normaliza para comparar "Cartao" com "Cartão". */
 const semAcento = (valor) =>
@@ -27,15 +27,32 @@ module.exports = class Pagamento {
     /** Converte Date/string para o formato YYYY-MM-DD. */
     static normalizarData(valor) {
         if (valor instanceof Date) {
+            if (Number.isNaN(valor.getTime())) {
+                throw new Error("data inválida, use o formato YYYY-MM-DD.");
+            }
             return valor.toISOString().slice(0, 10);
         }
         if (typeof valor === "string") {
             const texto = valor.trim();
-            const data = new Date(`${texto}T00:00:00`);
-            if (Number.isNaN(data.getTime())) {
+            const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto);
+            if (!partes) {
                 throw new Error("data inválida, use o formato YYYY-MM-DD.");
             }
-            return texto.slice(0, 10);
+            const [, anoTexto, mesTexto, diaTexto] = partes;
+            const ano = Number(anoTexto);
+            const mes = Number(mesTexto);
+            const dia = Number(diaTexto);
+            const data = new Date(Date.UTC(ano, mes - 1, dia));
+            if (
+                ano < 1000 ||
+                ano > 9999 ||
+                data.getUTCFullYear() !== ano ||
+                data.getUTCMonth() !== mes - 1 ||
+                data.getUTCDate() !== dia
+            ) {
+                throw new Error("data inválida, use o formato YYYY-MM-DD.");
+            }
+            return texto;
         }
         throw new Error("data deve ser uma string no formato YYYY-MM-DD.");
     }
@@ -111,6 +128,10 @@ module.exports = class Pagamento {
 
     /** @param {string} valor - Pix | Cartão | Dinheiro */
     set metodo(valor) {
+        if (valor === "") {
+            this.#metodo = "";
+            return;
+        }
         const nome = METODOS.find((item) => semAcento(item) === semAcento(valor));
         if (!nome) {
             throw new Error(`metodo inválido. Use um destes: ${METODOS.join(", ")}.`);
@@ -122,7 +143,7 @@ module.exports = class Pagamento {
         return this.#status;
     }
 
-    /** @param {string} valor - pendente | pago | atrasado */
+    /** @param {string} valor - pendente | pago */
     set status(valor) {
         const nome = STATUS.find((item) => semAcento(item) === semAcento(valor));
         if (!nome) {

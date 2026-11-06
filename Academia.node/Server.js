@@ -4,28 +4,26 @@ const cors = require("cors");
 
 const ErrorResponse = require("./api/utils/ErrorResponse");
 const Logger = require("./api/utils/Logger");
-const { MODALIDADES, DURACOES } = require("./api/domain/Modalidades");
 
 // Middlewares globais
 const JwtMiddleware = require("./api/middleware/JwtMiddleware");
 
 // Middlewares de validação de cada entidade
-const AuthMiddleware = require("./api/middleware/AuthMiddleware");
 const AlunoMiddleware = require("./api/middleware/AlunoMiddleware");
 const MatriculaMiddleware = require("./api/middleware/MatriculaMiddleware");
 const PagamentoMiddleware = require("./api/middleware/PagamentoMiddleware");
 
 // Controllers
-const AuthController = require("./api/controllers/AuthController");
 const AlunoController = require("./api/controllers/AlunoController");
 const MatriculaController = require("./api/controllers/MatriculaController");
 const PagamentoController = require("./api/controllers/PagamentoController");
+const TreinoController = require("./api/controllers/TreinoController");
 
 // Services
-const AuthService = require("./api/services/AuthService");
 const AlunoService = require("./api/services/AlunoService");
 const MatriculaService = require("./api/services/MatriculaService");
 const PagamentoService = require("./api/services/PagamentoService");
+const TreinoService = require("./api/services/TreinoService");
 
 // DAOs
 const AlunoDAO = require("./api/dao/AlunoDAO");
@@ -33,10 +31,10 @@ const MatriculaDAO = require("./api/dao/MatriculaDAO");
 const PagamentoDAO = require("./api/dao/PagamentoDAO");
 
 // Routers
-const AuthRouter = require("./api/routes/AuthRouter");
 const AlunoRouter = require("./api/routes/AlunoRouter");
 const MatriculaRouter = require("./api/routes/MatriculaRouter");
 const PagamentoRouter = require("./api/routes/PagamentoRouter");
+const TreinoRouter = require("./api/routes/TreinoRouter");
 
 // Banco de dados (pool único de conexões MySQL)
 const MysqlDatabase = require("./api/database/MysqlDatabase");
@@ -47,7 +45,7 @@ const MysqlDatabase = require("./api/database/MysqlDatabase");
  * Monta a arquitetura em camadas pedida em aula:
  * Router -> Middleware -> Controller -> Service -> DAO -> Banco
  *
- * Entidades: Aluno, Matricula e Pagamento.
+ * Entidades: Aluno, Matricula, Pagamento e Treino.
  */
 module.exports = class Server {
     // 🔒 Atributos privados (encapsulamento)
@@ -61,15 +59,15 @@ module.exports = class Server {
     #matriculaDAO;
     #pagamentoDAO;
 
-    #authService;
     #alunoService;
     #matriculaService;
     #pagamentoService;
+    #treinoService;
 
-    #authController;
     #alunoController;
     #matriculaController;
     #pagamentoController;
+    #treinoController;
 
     constructor(porta) {
         console.log("⬆️  Server.constructor()");
@@ -95,7 +93,7 @@ module.exports = class Server {
             user: process.env.DB_USER ?? "root",
             password: process.env.DB_PASSWORD ?? "",
             database: process.env.DB_NAME ?? "academia_db",
-            port: Number(process.env.DB_PORT ?? 3306),
+            port: 3306,
             waitForConnections: true,
             connectionLimit: 50,
             queueLimit: 10
@@ -110,42 +108,30 @@ module.exports = class Server {
 
         // 🔹 Services
         this.#alunoService = new AlunoService(this.#alunoDAO, this.#matriculaDAO);
-        this.#matriculaService = new MatriculaService(this.#matriculaDAO, this.#alunoDAO);
+        this.#matriculaService = new MatriculaService(
+            this.#matriculaDAO,
+            this.#alunoDAO,
+            this.#pagamentoDAO
+        );
         this.#pagamentoService = new PagamentoService(this.#pagamentoDAO, this.#matriculaDAO);
-        this.#authService = new AuthService(this.#alunoDAO, this.#alunoService);
+        this.#treinoService = new TreinoService();
 
         // 🔹 Controllers
-        this.#authController = new AuthController(this.#authService);
         this.#alunoController = new AlunoController(this.#alunoService);
         this.#matriculaController = new MatriculaController(this.#matriculaService);
         this.#pagamentoController = new PagamentoController(this.#pagamentoService);
+        this.#treinoController = new TreinoController(this.#treinoService);
 
         this.beforeRouting();
-        this.setupAuth();
         this.setupAluno();
         this.setupMatricula();
         this.setupPagamento();
-        this.setupModalidades();
+        this.setupTreinos();
         this.setupErrorMiddleware();
     }
 
     /**
-     * Módulo Auth: login e cadastro do aluno em /api/v1/auth
-     */
-    setupAuth = () => {
-        console.log("⬆️  Server.setupAuth()");
-
-        const router = new AuthRouter(
-            this.#jwtMiddleware,
-            new AuthMiddleware(),
-            this.#authController
-        );
-
-        this.#app.use("/api/v1/auth", router.createRoutes());
-    }
-
-    /**
-     * Módulo Aluno: CRUD em /api/v1/alunos
+     * Módulo Aluno: autenticação e CRUD em /api/v1/auth e /api/v1/alunos.
      */
     setupAluno = () => {
         console.log("⬆️  Server.setupAluno()");
@@ -156,6 +142,7 @@ module.exports = class Server {
             this.#alunoController
         );
 
+        this.#app.use("/api/v1/auth", router.createAuthRoutes());
         this.#app.use("/api/v1/alunos", router.createRoutes());
     }
 
@@ -189,23 +176,12 @@ module.exports = class Server {
         this.#app.use("/api/v1/pagamentos", router.createRoutes());
     }
 
-    /**
-     * Lista as modalidades e as durações de plano aceitas.
-     * Rota pública: é usada no painel do aluno.
-     */
-    setupModalidades = () => {
-        console.log("⬆️  Server.setupModalidades()");
+    /** Módulo público de treinos em /api/v1/treinos. */
+    setupTreinos = () => {
+        console.log("⬆️  Server.setupTreinos()");
 
-        this.#app.get("/api/v1/modalidades", (request, response) => {
-            return response.status(200).send({
-                success: true,
-                message: "Busca realizada com sucesso",
-                data: {
-                    modalidades: MODALIDADES.map((nome) => ({ nome })),
-                    duracoes: DURACOES
-                }
-            });
-        });
+        const router = new TreinoRouter(this.#treinoController);
+        this.#app.use("/api/v1/treinos", router.createRoutes());
     }
 
     /**
@@ -232,15 +208,18 @@ module.exports = class Server {
                 });
             }
 
-            const resposta = {
-                success: false,
-                message: "Ocorreu um erro interno no servidor",
-                data: { stack: error.stack },
-                error: { message: error.message || "Erro interno", code: error.code }
+            const mensagem = "Ocorreu um erro interno no servidor";
+            const detalhes = {
+                message: error.message || "Erro interno",
+                code: error.code,
+                stack: error.stack
             };
-            console.error("❌ Erro capturado:", resposta);
-            Logger.log(resposta);
-            return response.status(500).json(resposta);
+            console.error("❌ Erro capturado:", error);
+            Logger.log({ success: false, message: mensagem, error: detalhes });
+            return response.status(500).json({
+                success: false,
+                message: mensagem
+            });
         });
     }
 

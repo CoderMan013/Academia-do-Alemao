@@ -300,6 +300,17 @@ select.input option {
   font-size: 0.8rem;
 }
 
+.btn--icon {
+  width: 34px;
+  height: 34px;
+  padding: 6px;
+}
+
+.btn--icon svg {
+  width: 17px;
+  height: 17px;
+}
+
 /* ------------------------------- app --------------------------------- */
 
 .app {
@@ -467,7 +478,9 @@ select.input option {
   inset: 0;
   z-index: 20;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: start;
+  overflow-y: auto;
   padding: 20px;
   background: rgba(0, 0, 0, 0.66);
   backdrop-filter: blur(4px);
@@ -484,6 +497,11 @@ select.input option {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin-block: auto;
+}
+
+.modal__box--wide {
+  max-width: 460px;
 }
 
 .modal__title {
@@ -614,7 +632,7 @@ select.input option {
   color: var(--white);
 }
 
-.chip--modalidade {
+.chip--treino {
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.1);

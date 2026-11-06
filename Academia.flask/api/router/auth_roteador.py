@@ -7,7 +7,7 @@ from api.middleware.jwt_middleware import JwtMiddleware
 
 class AuthRoteador:
     """
-    Rotas públicas de autenticação.
+    Rotas de autenticação e edição do perfil do aluno.
 
     É por aqui que o frontend entra e cria conta: as duas telas do cadastro
     (escolha do tipo e dados restantes) terminam em POST /registrar.
@@ -49,5 +49,10 @@ class AuthRoteador:
                 "message": "Sessão válida",
                 "data": {"usuario": getattr(g, "usuario", None) or {}}
             }), 200
+
+        @self.__blueprint.route('/perfil', methods=['PUT'])
+        @self.__jwt_middleware.validate_token
+        def perfil():
+            return self.__auth_control.perfil()
 
         return self.__blueprint

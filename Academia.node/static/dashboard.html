@@ -27,6 +27,14 @@
       </div>
 
       <div class="app__actions">
+        <button class="btn btn--ghost btn--tiny btn--icon" id="btnEditarConta" type="button"
+          aria-label="Editar meus dados" title="Editar meus dados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+          </svg>
+        </button>
         <button class="btn btn--ghost btn--tiny" id="btnAtualizar" type="button">Atualizar</button>
         <button class="btn btn--ghost btn--tiny" id="btnSair" type="button">Sair</button>
       </div>
@@ -39,8 +47,8 @@
       <section class="card panel">
         <div class="panel__head">
           <div>
-            <h2 class="panel__title">Minhas modalidades</h2>
-            <p class="hint">Cada cartão é uma turma: modalidade e tempo restante do plano.</p>
+            <h2 class="panel__title">Meus treinos</h2>
+            <p class="hint">Cada cartão mostra um treino e o tempo restante do plano.</p>
           </div>
           <p class="hint" id="msgAluno" role="status"></p>
         </div>
@@ -52,29 +60,24 @@
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Iniciar novo plano</h2>
-            <p class="hint">Escolha a modalidade e por quanto tempo você quer treinar.</p>
+            <p class="hint">Escolha o treino e informe o período. As mensalidades serão geradas mês a mês.</p>
           </div>
         </div>
 
         <form class="form-grid" id="formNova" autocomplete="off">
           <label class="field">
-            <span class="field__label">Modalidade</span>
-            <select class="input" id="selModalidade"></select>
-          </label>
-
-          <label class="field">
-            <span class="field__label">Duração do plano</span>
-            <select class="input" id="selDuracao">
-              <option value="1">1 mês</option>
-              <option value="3" selected>3 meses</option>
-              <option value="6">6 meses</option>
-              <option value="12">12 meses</option>
-            </select>
+            <span class="field__label">Treino</span>
+            <select class="input" id="selTreino"></select>
           </label>
 
           <label class="field">
             <span class="field__label">Início</span>
-            <input class="input" id="txtInicio" type="date" />
+            <input class="input" id="txtInicio" type="date" required />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Fim</span>
+            <input class="input" id="txtFim" type="date" required />
           </label>
         </form>
 
@@ -89,29 +92,27 @@
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Minhas mensalidades</h2>
-            <p class="hint">Cada matrícula tem várias mensalidades. Marque como paga quando acertar.</p>
+            <p class="hint">As mensalidades são geradas junto com o plano e ficam pendentes até você registrar o pagamento.</p>
           </div>
           <p class="hint" id="msgPagamentos" role="status"></p>
         </div>
 
         <div class="table-wrap" id="tabelaPagamentos"></div>
 
-        <h3 class="panel__subtitle">Registrar mensalidade</h3>
+      </section>
+
+      <section class="card panel">
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title">Registrar pagamento</h2>
+            <p class="hint">Selecione uma mensalidade pendente e informe como foi paga.</p>
+          </div>
+        </div>
 
         <form class="form-grid" id="formPagamento" autocomplete="off">
           <label class="field">
-            <span class="field__label">Matrícula</span>
-            <select class="input" id="selMatriculaPagamento"></select>
-          </label>
-
-          <label class="field">
-            <span class="field__label">Valor (R$)</span>
-            <input class="input" id="txtValor" type="number" min="0" max="100000" step="0.01" placeholder="120.00" />
-          </label>
-
-          <label class="field">
-            <span class="field__label">Vencimento</span>
-            <input class="input" id="txtVencimento" type="date" />
+            <span class="field__label">Mensalidade pendente</span>
+            <select class="input" id="selPagamentoRegistro"></select>
           </label>
 
           <label class="field">
@@ -125,7 +126,7 @@
         </form>
 
         <div class="panel__actions">
-          <button class="btn btn--primary" id="btnPagamento" type="button">Registrar</button>
+          <button class="btn btn--primary" id="btnPagamento" type="button">Registrar pagamento</button>
           <span class="hint" id="msgNovoPagamento" role="status"></span>
         </div>
       </section>
@@ -135,7 +136,7 @@
   <!-- Confirmação de saída da turma -->
   <div class="modal" id="modalRemover" hidden>
     <div class="card modal__box">
-      <h3 class="modal__title">Sair da modalidade</h3>
+      <h3 class="modal__title">Sair do treino</h3>
       <p class="modal__text" id="textoRemocao">Tem certeza que deseja remover esta matrícula?</p>
       <p class="modal__text">As mensalidades dessa matrícula também serão apagadas.</p>
       <div class="modal__actions">
@@ -143,6 +144,40 @@
         <button class="btn btn--danger btn--tiny" id="btnConfirmarRemocao" type="button">Remover</button>
       </div>
     </div>
+  </div>
+
+  <div class="modal" id="modalConta" hidden>
+    <form class="card modal__box modal__box--wide" id="formConta" autocomplete="on">
+      <h3 class="modal__title">Editar meus dados</h3>
+      <p class="modal__text">Confirme sua senha atual para salvar as alterações.</p>
+
+      <label class="field">
+        <span class="field__label">E-mail</span>
+        <input class="input" id="txtEmailConta" type="email" maxlength="64" autocomplete="email" required />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Senha atual</span>
+        <input class="input" id="txtSenhaAtual" type="password" autocomplete="current-password" required />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Nova senha (opcional)</span>
+        <input class="input" id="txtNovaSenha" type="password" minlength="6" autocomplete="new-password" />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Confirmar nova senha</span>
+        <input class="input" id="txtConfirmarSenha" type="password" minlength="6" autocomplete="new-password" />
+      </label>
+      <p class="hint">A nova senha precisa ter 6 caracteres, uma letra maiúscula, um número e um caractere especial.</p>
+      <p class="hint" id="msgConta" role="status"></p>
+
+      <div class="modal__actions">
+        <button class="btn btn--ghost btn--tiny" id="btnCancelarConta" type="button">Cancelar</button>
+        <button class="btn btn--primary btn--tiny" id="btnSalvarConta" type="submit">Salvar alterações</button>
+      </div>
+    </form>
   </div>
 
   <script type="module" src="dashboard.js"></script>

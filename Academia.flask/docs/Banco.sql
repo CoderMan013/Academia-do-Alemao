@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS `Aluno` (
 
 -- ---------------------------------------------------------------------
 -- Tabela Matricula (tabela do meio: FK para Aluno)
--- modalidade: Musculação | Cross Fit | Muay Thai | Karatê | Boxe
+-- treino: Musculação | Cross Fit | Muay Thai | Karatê | Boxe
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `Matricula` (
   `idMatricula` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `modalidade` VARCHAR(64) NOT NULL,
+  `treino` VARCHAR(64) NOT NULL,
   `dataInicio` DATE NOT NULL,
   `dataFim` DATE NOT NULL,
   `status` VARCHAR(16) NOT NULL DEFAULT 'ativa',
@@ -80,7 +80,7 @@ INSERT INTO `Aluno` (`idAluno`, `nomeAluno`, `email`, `senha`, `ativo`) VALUES
   (1, 'Ana Souza', 'ana@academia.com', '$2b$12$J4RXUgst/ThP0rsHElfY6.tEio.P.uAQiTLZgcG4o.VEKPq/ZiAEm', 1),
   (2, 'Bruno Lima', 'bruno@academia.com', '$2b$12$J4RXUgst/ThP0rsHElfY6.tEio.P.uAQiTLZgcG4o.VEKPq/ZiAEm', 1);
 
-INSERT INTO `Matricula` (`idMatricula`, `modalidade`, `dataInicio`, `dataFim`, `status`, `Aluno_idAluno`) VALUES
+INSERT INTO `Matricula` (`idMatricula`, `treino`, `dataInicio`, `dataFim`, `status`, `Aluno_idAluno`) VALUES
   (1, 'Muay Thai', '2026-10-01', '2027-01-01', 'ativa', 1),
   (2, 'Cross Fit', '2026-11-01', '2027-02-01', 'ativa', 1),
   (3, 'Karatê', '2025-01-10', '2025-02-10', 'concluida', 1),

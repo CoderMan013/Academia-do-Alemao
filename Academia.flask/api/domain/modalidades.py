@@ -2,9 +2,9 @@
 import unicodedata
 
 """
-Modalidades oferecidas pela academia.
+Treinos oferecidos pela academia.
 
-A lista é fixa (domínio do sistema): a matrícula guarda o nome da modalidade.
+A lista é fixa (domínio do sistema): a matrícula guarda o nome do treino.
 A validação fica aqui para que model, service e frontend trabalhem sempre
 com o mesmo texto canônico.
 """
@@ -16,6 +16,14 @@ MODALIDADES = [
     "Karatê",
     "Boxe",
 ]
+
+PRECOS_MENSALIDADES = {
+    "Musculação": 60,
+    "Cross Fit": 60,
+    "Muay Thai": 120,
+    "Karatê": 120,
+    "Boxe": 120,
+}
 
 # Durações de plano oferecidas na tela (em meses)
 DURACOES = [1, 3, 6, 12]
@@ -32,7 +40,7 @@ def _sem_acento(valor) -> str:
 
 def modalidade_canonica(valor):
     """
-    Devolve o nome canônico da modalidade (ou None se não existir).
+    Devolve o nome canônico do treino (ou None se não existir).
 
     :param valor: str
     :return: str | None
@@ -50,19 +58,24 @@ def validar_modalidade(valor) -> str:
     """
     :param valor: str
     :return: str - nome canônico
-    :raises ValueError: se a modalidade não existir
+    :raises ValueError: se o treino não existir
     """
     nome = modalidade_canonica(valor)
 
     if not nome:
-        raise ValueError(f"modalidade inválida. Use uma destas: {', '.join(MODALIDADES)}.")
+        raise ValueError(f"Treino inválido. Escolha um destes: {', '.join(MODALIDADES)}.")
 
     return nome
 
 
+def preco_mensalidade(valor) -> int:
+    """Retorna o preço mensal do treino, usando sempre o nome canônico."""
+    return PRECOS_MENSALIDADES[validar_modalidade(valor)]
+
+
 def normalizar_lista(valor) -> list[str]:
     """
-    Normaliza uma lista de modalidades (lista ou texto separado por vírgula),
+    Normaliza uma lista de treinos (lista ou texto separado por vírgula),
     removendo repetições.
 
     :param valor: list | str | None

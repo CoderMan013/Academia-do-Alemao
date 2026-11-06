@@ -4,19 +4,19 @@ from api.model.pagamento import Pagamento
 """
 DAO da tabela Pagamento.
 
-As leituras usam JOIN com Matricula e Aluno para devolver a modalidade e
-o dono do pagamento. O status "atrasado" é calculado na consulta: um
-pagamento pendente com vencimento no passado aparece como atrasado.
+As leituras usam JOIN com Matricula e Aluno para devolver o treino e
+o dono do pagamento. O status legado "atrasado" é apresentado como
+"pendente", sem alterar os registros armazenados.
 """
 class PagamentoDAO:
     SELECT_BASE = """
         SELECT p.idPagamento, p.valor, p.dataVencimento, p.dataPagamento,
                p.metodo,
                CASE
-                   WHEN p.status = 'pendente' AND p.dataVencimento < CURDATE() THEN 'atrasado'
+                   WHEN p.status = 'atrasado' THEN 'pendente'
                    ELSE p.status
                END AS status,
-               m.idMatricula, m.modalidade,
+               m.idMatricula, m.treino AS modalidade,
                a.idAluno, a.nomeAluno, a.email AS emailAluno
         FROM Pagamento p
         JOIN Matricula m ON m.idMatricula = p.Matricula_idMatricula
@@ -26,7 +26,7 @@ class PagamentoDAO:
         print("⬆️  PagamentoDAO.__init__()")
         self.__database = database_dependency
 
-    def create(self, objPagamento: Pagamento) -> int:
+    def create(self, objPagamento: Pagamento, conn=None) -> int:
         print("🟢 PagamentoDAO.create()")
 
         SQL = """
@@ -41,10 +41,15 @@ class PagamentoDAO:
             objPagamento.matriculaId,
         )
 
-        with self.__database.get_connection() as conn:
+        if conn is None:
+            with self.__database.get_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(SQL, params)
+                    connection.commit()
+                    insert_id = cursor.lastrowid
+        else:
             with conn.cursor() as cursor:
                 cursor.execute(SQL, params)
-                conn.commit()
                 insert_id = cursor.lastrowid
 
         if not insert_id:

@@ -22,6 +22,8 @@ class AlunoService:
         :param matricula_dao_dependency: MatriculaDAO
         """
         print("⬆️  AlunoService.__init__()")
+        # O DAO de aluno executa operações da tabela Aluno; o de matrícula
+        # permite impedir exclusões que deixariam dados relacionados inválidos.
         self.__alunoDAO = aluno_dao_dependency
         self.__matriculaDAO = matricula_dao_dependency
 
@@ -38,6 +40,7 @@ class AlunoService:
         """
         print("🟣 AlunoService.createAluno()")
 
+        # O Model valida e normaliza os valores antes de qualquer gravação.
         aluno = Aluno()
         ativo = jsonAluno.get("ativo")
 
@@ -45,10 +48,12 @@ class AlunoService:
             aluno.nomeAluno = jsonAluno.get("nomeAluno")
             aluno.email = jsonAluno.get("email")
             aluno.senha = jsonAluno.get("senha")
-            aluno.ativo = 1 if ativo is None else ativo  # mesmo comportamento do "ativo ?? 1" do Node
+            aluno.ativo = 1 if ativo is None else ativo  # mesmo comportamento do "ativo WARNING: 1" do Node
 
         validar(preencher)
 
+        # A checagem de e-mail duplicado é uma regra de negócio, por isso fica
+        # no Service e não no Controller nem no DAO.
         existentes = self.__alunoDAO.findByField("email", aluno.email)
         if existentes:
             raise ErrorResponse(
@@ -57,6 +62,7 @@ class AlunoService:
                 {"message": f"O e-mail {aluno.email} já está cadastrado"}
             )
 
+        # Só depois de validar os dados e a unicidade o DAO grava o aluno.
         return self.__alunoDAO.create(aluno)
 
     def findAll(self) -> list[dict]:
@@ -65,6 +71,7 @@ class AlunoService:
         :return: list[dict]
         """
         print("🟣 AlunoService.findAll()")
+        # Para uma listagem simples, o Service encaminha a consulta ao DAO.
         return self.__alunoDAO.findAll()
 
     def findById(self, idAluno: int) -> dict | None:
@@ -76,9 +83,11 @@ class AlunoService:
         """
         print("🟣 AlunoService.findById()")
 
+        # Atribuir o ID ao Model aplica a regra de ID inteiro positivo.
         aluno = Aluno()
         aluno.idAluno = idAluno  # passa pela validação de domínio
 
+        # O DAO devolve um dicionário sem a senha.
         return self.__alunoDAO.findById(aluno.idAluno)
 
     def updateAluno(self, idAluno: int, jsonAluno: dict) -> bool:
@@ -93,6 +102,7 @@ class AlunoService:
         """
         print("🟣 AlunoService.updateAluno()")
 
+        # Primeiro valida os dados que sempre são necessários para atualizar.
         aluno = Aluno()
         ativo = jsonAluno.get("ativo")
 
@@ -100,10 +110,12 @@ class AlunoService:
             aluno.idAluno = idAluno
             aluno.nomeAluno = jsonAluno.get("nomeAluno")
             aluno.email = jsonAluno.get("email")
-            aluno.ativo = 1 if ativo is None else ativo  # mesmo comportamento do "ativo ?? 1" do Node
+            aluno.ativo = 1 if ativo is None else ativo  # mesmo comportamento do "ativo WARNING: 1" do Node
 
         validar(preencher)
 
+        # Permite que o próprio aluno mantenha seu e-mail, mas impede usar
+        # o endereço que já pertence a outra pessoa.
         existentes = self.__alunoDAO.findByField("email", aluno.email)
         outro_aluno = [item for item in existentes if item["idAluno"] != aluno.idAluno]
         if outro_aluno:
@@ -115,6 +127,8 @@ class AlunoService:
 
         senha = jsonAluno.get("senha")
         if senha is not None and str(senha).strip() != "":
+            # Senha vazia ou ausente não substitui a senha atual; se enviada,
+            # precisa passar pelas regras do Model antes de chegar ao DAO.
             def preencher_senha():
                 aluno.senha = senha
 
@@ -131,10 +145,12 @@ class AlunoService:
         """
         print("🟣 AlunoService.deleteAluno()")
 
+        # Valida o ID e consulta as dependências antes de pedir a exclusão.
         aluno = Aluno()
         aluno.idAluno = idAluno  # validação de regra de domínio
 
         total_matriculas = self.__matriculaDAO.countByAluno(aluno.idAluno)
+        # Protege o relacionamento: um aluno com matrículas não pode ser removido.
         if total_matriculas > 0:
             raise ErrorResponse(
                 400,
@@ -142,4 +158,5 @@ class AlunoService:
                 {"message": f"Não é possível excluir: existem {total_matriculas} matrícula(s) deste aluno"}
             )
 
+        # Sem matrículas vinculadas, delega a remoção ao DAO.
         return self.__alunoDAO.delete(aluno)

@@ -9,7 +9,6 @@ module.exports = class PagamentoMiddleware {
      * Corpo esperado:
      * {
      *   "pagamento": {
-     *     "valor": 120.00,
      *     "dataVencimento": "2026-12-05",
      *     "dataPagamento": null,
      *     "metodo": "Pix",
@@ -28,12 +27,6 @@ module.exports = class PagamentoMiddleware {
             });
         }
 
-        if (pagamento.valor === undefined || pagamento.valor === null || String(pagamento.valor).trim() === "") {
-            throw new ErrorResponse(400, "Erro na validação de dados", {
-                message: "O campo 'valor' é obrigatório!"
-            });
-        }
-
         if (!pagamento.dataVencimento) {
             throw new ErrorResponse(400, "Erro na validação de dados", {
                 message: "O campo 'dataVencimento' é obrigatório!"
@@ -49,7 +42,7 @@ module.exports = class PagamentoMiddleware {
         next();
     };
 
-    /** PUT: valor e vencimento continuam obrigatórios. */
+    /** PUT: exige dados de atualização, sem permitir alterar o valor fixo. */
     validateUpdateBody = (request, response, next) => {
         console.log("🔷 PagamentoMiddleware.validateUpdateBody()");
         const pagamento = request.body?.pagamento;
@@ -60,9 +53,14 @@ module.exports = class PagamentoMiddleware {
             });
         }
 
-        if (pagamento.valor === undefined && pagamento.status === undefined) {
+        if (
+            pagamento.dataVencimento === undefined &&
+            pagamento.dataPagamento === undefined &&
+            pagamento.metodo === undefined &&
+            pagamento.status === undefined
+        ) {
             throw new ErrorResponse(400, "Erro na validação de dados", {
-                message: "Informe ao menos 'valor' ou 'status' para atualizar!"
+                message: "Informe ao menos um campo da mensalidade para atualizar!"
             });
         }
 

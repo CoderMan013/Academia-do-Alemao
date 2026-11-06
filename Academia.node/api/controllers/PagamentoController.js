@@ -70,7 +70,7 @@ module.exports = class PagamentoController {
     index = async (request, response, next) => {
         console.log("🔵 PagamentoController.index()");
         try {
-            const pagamentos = await this.#pagamentoService.findAll();
+            const pagamentos = await this.#pagamentoService.findAll(request.usuarioAutenticado);
 
             return response.status(200).send({
                 success: true,
@@ -87,7 +87,10 @@ module.exports = class PagamentoController {
         console.log("🔵 PagamentoController.show()");
         try {
             const idPagamento = request.params.idPagamento;
-            const pagamento = await this.#pagamentoService.findById(idPagamento);
+            const pagamento = await this.#pagamentoService.findById(
+                idPagamento,
+                request.usuarioAutenticado
+            );
 
             if (!pagamento) {
                 throw new ErrorResponse(404, "Pagamento não encontrado", {

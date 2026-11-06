@@ -38,7 +38,9 @@ class MatriculaControl:
         """GET /api/v1/matriculas -> lista todas as matrículas"""
         print("🔵 MatriculaControl.index()")
 
-        matriculas = self.__matricula_service.findAll()
+        matriculas = self.__matricula_service.findMinhas(
+            self._usuario_autenticado().get("idAluno")
+        )
 
         return jsonify({
             "success": True,
@@ -63,7 +65,10 @@ class MatriculaControl:
         """GET /api/v1/matriculas/<idMatricula> -> retorna uma matrícula"""
         print("🔵 MatriculaControl.show()")
 
-        matricula = self.__matricula_service.findById(idMatricula)
+        matricula = self.__matricula_service.findById(
+            idMatricula,
+            self._usuario_autenticado()
+        )
 
         if not matricula:
             raise ErrorResponse(

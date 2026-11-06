@@ -1,17 +1,25 @@
 /**
- * Modalidades oferecidas pela academia.
+ * Treinos oferecidos pela academia.
  *
- * A lista é fixa (domínio do sistema): a matrícula guarda o nome da modalidade.
+ * A lista é fixa (domínio do sistema): a matrícula guarda o nome do treino.
  * A validação fica aqui para que model, service e frontend trabalhem sempre
  * com o mesmo texto canônico.
  */
-const MODALIDADES = [
+const TREINOS = [
     "Musculação",
     "Cross Fit",
     "Muay Thai",
     "Karatê",
     "Boxe"
 ];
+
+const VALORES_MENSALIDADE = {
+    "Musculação": 60,
+    "Cross Fit": 60,
+    "Muay Thai": 120,
+    "Karatê": 120,
+    "Boxe": 120
+};
 
 /** Durações de plano oferecidas na tela (em meses). */
 const DURACOES = [1, 3, 6, 12];
@@ -28,30 +36,44 @@ const semAcento = (valor) =>
         .toLowerCase();
 
 /**
- * Devolve o nome canônico da modalidade (ou null se não existir).
+ * Devolve o nome canônico do treino (ou null se não existir).
  * @param {string} valor
  * @returns {string|null}
  */
-function modalidadeCanonica(valor) {
+function treinoCanonico(valor) {
     const alvo = semAcento(valor);
-    return MODALIDADES.find((modalidade) => semAcento(modalidade) === alvo) ?? null;
+    return TREINOS.find((treino) => semAcento(treino) === alvo) ?? null;
+}
+
+/**
+ * Devolve o valor fixo da mensalidade do treino.
+ * @param {string} treino
+ * @returns {number}
+ * @throws {Error} se o treino não existir
+ */
+function valorMensalidade(treino) {
+    const nome = treinoCanonico(treino);
+    if (!nome) {
+        throw new Error(`treino inválido. Use uma destas: ${TREINOS.join(", ")}.`);
+    }
+    return VALORES_MENSALIDADE[nome];
 }
 
 /**
  * @param {string} valor
  * @returns {string} nome canônico
- * @throws {Error} se a modalidade não existir
+ * @throws {Error} se o treino não existir
  */
-function validarModalidade(valor) {
-    const nome = modalidadeCanonica(valor);
+function validarTreino(valor) {
+    const nome = treinoCanonico(valor);
     if (!nome) {
-        throw new Error(`modalidade inválida. Use uma destas: ${MODALIDADES.join(", ")}.`);
+        throw new Error(`treino inválido. Use uma destas: ${TREINOS.join(", ")}.`);
     }
     return nome;
 }
 
 /**
- * Normaliza uma lista de modalidades (array ou texto separado por vírgula),
+ * Normaliza uma lista de treinos (array ou texto separado por vírgula),
  * removendo repetições.
  * @param {Array<string>|string|null|undefined} valor
  * @returns {Array<string>}
@@ -63,7 +85,7 @@ function normalizarLista(valor) {
     const lista = [];
 
     for (const item of bruto) {
-        const nome = validarModalidade(item);
+        const nome = validarTreino(item);
         if (!lista.includes(nome)) lista.push(nome);
     }
 
@@ -94,11 +116,12 @@ function validarDuracao(valor) {
 }
 
 module.exports = {
-    MODALIDADES,
+    TREINOS,
     DURACOES,
     DURACAO_PADRAO_MESES,
-    modalidadeCanonica,
-    validarModalidade,
+    treinoCanonico,
+    valorMensalidade,
+    validarTreino,
     normalizarLista,
     listaParaTexto,
     textoParaLista,

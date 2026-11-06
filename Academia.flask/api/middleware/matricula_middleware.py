@@ -8,7 +8,7 @@ from api.utils.error_response import ErrorResponse
 """
 Middleware para validação de requisições relacionadas à entidade Matricula.
 
-A matrícula precisa da modalidade; o aluno vem do token.
+A matrícula precisa do treino; o aluno vem do token.
 """
 class MatriculaMiddleware:
 
@@ -19,7 +19,8 @@ class MatriculaMiddleware:
           "matricula": {
             "modalidade": "Muay Thai",
             "dataInicio": "2026-11-03",    // opcional: hoje
-            "duracaoMeses": 3,             // opcional: 3
+            "dataFim": "2027-02-03",       // obrigatório
+            "duracaoMeses": 3,             // informativo para o painel
             "status": "ativa"              // opcional
           }
         }
@@ -28,13 +29,16 @@ class MatriculaMiddleware:
         def decorated_function(*args, **kwargs):
             print("🔷 MatriculaMiddleware.validate_body()")
             body = request.get_json(silent=True)
-            matricula = (body or {}).get("matricula")
+            matricula = body.get("matricula") if isinstance(body, dict) else None
 
-            if not matricula:
+            if not isinstance(matricula, dict):
                 raise ErrorResponse(400, "Erro na validação de dados", {"message": "O campo 'matricula' é obrigatório!"})
 
             if not matricula.get("modalidade") or str(matricula.get("modalidade")).strip() == "":
-                raise ErrorResponse(400, "Erro na validação de dados", {"message": "O campo 'modalidade' é obrigatório!"})
+                raise ErrorResponse(400, "Erro na validação de dados", {"message": "O treino é obrigatório."})
+
+            if not matricula.get("dataFim"):
+                raise ErrorResponse(400, "Erro na validação de dados", {"message": "O campo 'dataFim' é obrigatório!"})
 
             return f(*args, **kwargs)
         return decorated_function

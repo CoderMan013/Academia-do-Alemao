@@ -44,7 +44,7 @@ def setup_database(host="127.0.0.1", user="root", password="", port=3306, sql_fi
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Erro: usuário ou senha incorretos")
         elif err.errno == errorcode.CR_CONN_HOST_ERROR:
-            print(f"Erro: não foi possível conectar em {host}:{port}. O MySQL está rodando?")
+            print(f"Erro: não foi possível conectar em {host}:{port}. O MySQL está rodandoOK:")
         else:
             print(err)
         return False

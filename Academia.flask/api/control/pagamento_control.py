@@ -67,7 +67,9 @@ class PagamentoControl:
         """GET /api/v1/pagamentos -> lista todos os pagamentos"""
         print("🔵 PagamentoControl.index()")
 
-        pagamentos = self.__pagamento_service.findAll()
+        pagamentos = self.__pagamento_service.findMinhas(
+            self._usuario_autenticado().get("idAluno")
+        )
 
         return jsonify({
             "success": True,
@@ -79,7 +81,10 @@ class PagamentoControl:
         """GET /api/v1/pagamentos/<idPagamento>"""
         print("🔵 PagamentoControl.show()")
 
-        pagamento = self.__pagamento_service.findById(idPagamento)
+        pagamento = self.__pagamento_service.findById(
+            idPagamento,
+            self._usuario_autenticado()
+        )
 
         if not pagamento:
             raise ErrorResponse(

@@ -8,7 +8,7 @@ from api.utils.numeros import para_inteiro
 """
 Representa a entidade Matricula: a tabela do meio do projeto.
 
-Relaciona o Aluno à modalidade cursada e guarda o período do plano.
+Relaciona o Aluno ao treino escolhido e guarda o período do plano.
 Cada matrícula pode ter vários pagamentos (mensalidades).
 """
 
@@ -108,14 +108,14 @@ class Matricula:
 
     @property
     def modalidade(self):
-        """Getter para modalidade."""
+        """Getter do treino."""
         return self.__modalidade
 
     @modalidade.setter
     def modalidade(self, valor):
-        """Regra de domínio: uma das 5 modalidades da academia."""
+        """Regra de domínio: um dos 5 treinos da academia."""
         if not isinstance(valor, str):
-            raise ValueError("modalidade deve ser uma string.")
+            raise ValueError("O treino deve ser informado como texto.")
 
         self.__modalidade = validar_modalidade(valor)
 

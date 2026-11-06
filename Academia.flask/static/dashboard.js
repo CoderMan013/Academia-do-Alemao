@@ -3,8 +3,8 @@ import ApiService from "./ApiService.js";
 /* =====================================================================
    Painel da Academia do Alemão
    - Só existe o aluno logado.
-   - Aluno: vê/remove suas matrículas, inicia planos novos e cuida
-     das mensalidades (registrar, marcar como paga, excluir).
+   - Aluno: vê/remove suas matrículas, inicia planos novos e paga/exclui
+     mensalidades existentes.
    ===================================================================== */
 
 const sessao = JSON.parse(localStorage.getItem("userData") ?? "null");
@@ -23,6 +23,7 @@ const api = new ApiService(token);
 const boasVindas = document.getElementById("boasVindas");
 const btnSair = document.getElementById("btnSair");
 const btnAtualizar = document.getElementById("btnAtualizar");
+const btnPerfil = document.getElementById("btnPerfil");
 
 const statsAluno = document.getElementById("statsAluno");
 const minhasMatriculas = document.getElementById("minhasMatriculas");
@@ -37,12 +38,19 @@ const msgNova = document.getElementById("msgNova");
 const tabelaPagamentos = document.getElementById("tabelaPagamentos");
 const msgPagamentos = document.getElementById("msgPagamentos");
 const formPagamento = document.getElementById("formPagamento");
-const selMatriculaPagamento = document.getElementById("selMatriculaPagamento");
-const txtValor = document.getElementById("txtValor");
-const txtVencimento = document.getElementById("txtVencimento");
+const selPagamentoPendente = document.getElementById("selPagamentoPendente");
 const selMetodo = document.getElementById("selMetodo");
 const btnPagamento = document.getElementById("btnPagamento");
 const msgNovoPagamento = document.getElementById("msgNovoPagamento");
+
+const modalPerfil = document.getElementById("modalPerfil");
+const formPerfil = document.getElementById("formPerfil");
+const txtEmailPerfil = document.getElementById("txtEmailPerfil");
+const txtSenhaAtual = document.getElementById("txtSenhaAtual");
+const txtNovaSenha = document.getElementById("txtNovaSenha");
+const msgPerfil = document.getElementById("msgPerfil");
+const btnCancelarPerfil = document.getElementById("btnCancelarPerfil");
+const btnSalvarPerfil = document.getElementById("btnSalvarPerfil");
 
 const modalRemover = document.getElementById("modalRemover");
 const textoRemocao = document.getElementById("textoRemocao");
@@ -75,6 +83,14 @@ function hojeISO() {
     const agora = new Date();
     const local = new Date(agora.getTime() - agora.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 10);
+}
+
+function somarMesesISO(data, meses) {
+    const [ano, mes, dia] = data.split("-").map(Number);
+    const destino = new Date(Date.UTC(ano, mes - 1 + meses, 1));
+    const ultimoDia = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+    const vencimento = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth(), Math.min(dia, ultimoDia)));
+    return vencimento.toISOString().slice(0, 10);
 }
 
 function diasRestantes(dataFim) {
@@ -183,7 +199,7 @@ function renderStats() {
     const totalPago = pagas.reduce((soma, p) => soma + Number(p.valor ?? 0), 0);
 
     statsAluno.replaceChildren(
-        criarStat(ativas.length, "modalidades ativas"),
+        criarStat(ativas.length, "treinos ativos"),
         criarStat(abertas.length, "mensalidades em aberto"),
         criarStat(formatarDinheiro(totalPago), "total já pago")
     );
@@ -197,7 +213,7 @@ function renderMinhas() {
     if (estado.minhas.length === 0) {
         const vazio = document.createElement("p");
         vazio.className = "empty";
-        vazio.textContent = "Você ainda não está em nenhuma modalidade. Escolha uma abaixo para começar.";
+        vazio.textContent = "Você ainda não tem nenhum treino. Escolha um abaixo para começar.";
         minhasMatriculas.appendChild(vazio);
         return;
     }
@@ -272,7 +288,7 @@ function preencherNovaMatricula() {
     if (estado.modalidades.length === 0) {
         const opcao = document.createElement("option");
         opcao.value = "";
-        opcao.textContent = "Carregando modalidades…";
+        opcao.textContent = "Carregando treinos…";
         selModalidade.appendChild(opcao);
         btnNova.disabled = true;
         return;
@@ -281,7 +297,7 @@ function preencherNovaMatricula() {
     for (const modalidade of estado.modalidades) {
         const opcao = document.createElement("option");
         opcao.value = modalidade.nome;
-        opcao.textContent = modalidade.nome;
+        opcao.textContent = `${modalidade.nome} · ${formatarDinheiro(modalidade.valorMensalidade)}/mês`;
         selModalidade.appendChild(opcao);
     }
 
@@ -295,15 +311,16 @@ async function criarMatricula() {
     const modalidade = selModalidade.value;
     const duracaoMeses = Number(selDuracao.value);
     const dataInicio = txtInicio.value || hojeISO();
+    const dataFim = somarMesesISO(dataInicio, duracaoMeses);
 
-    if (!modalidade) return mensagem(msgNova, "Escolha uma modalidade.", "erro");
+    if (!modalidade) return mensagem(msgNova, "Escolha um treino.", "erro");
 
     btnNova.disabled = true;
     btnNova.textContent = "Iniciando...";
     mensagem(msgNova, "");
 
     const resposta = await api.post("/api/v1/matriculas", {
-        matricula: { modalidade, dataInicio, duracaoMeses }
+        matricula: { modalidade, dataInicio, dataFim, duracaoMeses }
     });
 
     btnNova.disabled = false;
@@ -322,7 +339,7 @@ async function criarMatricula() {
 
 function abrirRemocao(matricula) {
     estado.remover = matricula;
-    textoRemocao.textContent = `Remover ${matricula.modalidade} das suas modalidades?`;
+    textoRemocao.textContent = `Remover o treino ${matricula.modalidade}?`;
     modalRemover.hidden = false;
     btnConfirmarRemocao.focus();
 }
@@ -346,7 +363,7 @@ async function confirmarRemocao() {
     }
 
     await carregarAluno();
-    mensagem(msgAluno, "Modalidade removida.", "ok");
+    mensagem(msgAluno, "Treino removido.", "ok");
 }
 
 /* ----------------------------- pagamentos ---------------------------- */
@@ -359,7 +376,7 @@ function renderPagamentos() {
 
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
-    for (const titulo of ["Modalidade", "Vencimento", "Valor", "Forma", "Status", "Pago em", "Ações"]) {
+    for (const titulo of ["Treino", "Vencimento", "Valor", "Forma", "Status", "Pago em", "Ações"]) {
         const th = document.createElement("th");
         th.textContent = titulo;
         trHead.appendChild(th);
@@ -386,7 +403,7 @@ function renderPagamentos() {
             pagamento.matricula?.modalidade ?? "—",
             formatarData(pagamento.dataVencimento),
             formatarDinheiro(pagamento.valor),
-            pagamento.metodo
+            pagamento.metodo || "—"
         ];
 
         for (const valor of celulas) {
@@ -410,15 +427,6 @@ function renderPagamentos() {
         const acoes = document.createElement("div");
         acoes.className = "row-actions";
 
-        if (pagamento.status !== "pago") {
-            const btnPagar = document.createElement("button");
-            btnPagar.type = "button";
-            btnPagar.className = "btn btn--primary btn--tiny";
-            btnPagar.textContent = "Marcar paga";
-            btnPagar.addEventListener("click", () => marcarComoPaga(pagamento));
-            acoes.appendChild(btnPagar);
-        }
-
         const btnExcluir = document.createElement("button");
         btnExcluir.type = "button";
         btnExcluir.className = "btn btn--danger btn--tiny";
@@ -437,58 +445,46 @@ function renderPagamentos() {
 }
 
 function preencherFormPagamento() {
-    const anterior = selMatriculaPagamento.value;
-    selMatriculaPagamento.replaceChildren();
+    const anterior = selPagamentoPendente.value;
+    selPagamentoPendente.replaceChildren();
+    const pendentes = estado.pagamentos.filter((pagamento) => pagamento.status === "pendente");
 
-    if (estado.minhas.length === 0) {
+    if (pendentes.length === 0) {
         const opcao = document.createElement("option");
         opcao.value = "";
-        opcao.textContent = "Inicie um plano primeiro";
-        selMatriculaPagamento.appendChild(opcao);
+        opcao.textContent = "Nenhuma mensalidade pendente";
+        selPagamentoPendente.appendChild(opcao);
         btnPagamento.disabled = true;
         return;
     }
 
-    for (const matricula of estado.minhas) {
+    for (const pagamento of pendentes) {
         const opcao = document.createElement("option");
-        opcao.value = String(matricula.idMatricula);
-        opcao.textContent = `${matricula.modalidade} (${matricula.status})`;
-        selMatriculaPagamento.appendChild(opcao);
+        opcao.value = String(pagamento.idPagamento);
+        opcao.textContent = `${pagamento.matricula?.modalidade ?? "Mensalidade"} · ${formatarData(pagamento.dataVencimento)} · ${formatarDinheiro(pagamento.valor)}`;
+        selPagamentoPendente.appendChild(opcao);
     }
 
     btnPagamento.disabled = false;
-    if (anterior) selMatriculaPagamento.value = anterior;
-    if (!txtVencimento.value) txtVencimento.value = hojeISO();
+    if (anterior) selPagamentoPendente.value = anterior;
 }
 
 async function registrarPagamento() {
     if (btnPagamento.disabled) return;
 
-    const idMatricula = Number(selMatriculaPagamento.value);
-    const valor = Number(txtValor.value);
-    const dataVencimento = txtVencimento.value || hojeISO();
+    const idPagamento = Number(selPagamentoPendente.value);
     const metodo = selMetodo.value;
 
-    if (!Number.isInteger(idMatricula) || idMatricula <= 0) {
-        return mensagem(msgNovoPagamento, "Inicie um plano antes de registrar mensalidades.", "erro");
-    }
-
-    if (!Number.isFinite(valor) || valor <= 0) {
-        return mensagem(msgNovoPagamento, "Informe um valor maior que zero.", "erro");
+    if (!Number.isInteger(idPagamento) || idPagamento <= 0) {
+        return mensagem(msgNovoPagamento, "Selecione uma mensalidade pendente.", "erro");
     }
 
     btnPagamento.disabled = true;
     btnPagamento.textContent = "Registrando...";
     mensagem(msgNovoPagamento, "");
 
-    const resposta = await api.post("/api/v1/pagamentos", {
-        pagamento: {
-            valor,
-            dataVencimento,
-            metodo,
-            status: "pendente",
-            matricula: { idMatricula }
-        }
+    const resposta = await api.put("/api/v1/pagamentos", idPagamento, {
+        pagamento: { status: "pago", metodo }
     });
 
     btnPagamento.disabled = false;
@@ -501,27 +497,8 @@ async function registrarPagamento() {
         return;
     }
 
-    txtValor.value = "";
     await carregarAluno();
-    mensagem(msgNovoPagamento, "Mensalidade registrada!", "ok");
-}
-
-async function marcarComoPaga(pagamento) {
-    mensagem(msgPagamentos, "Salvando…");
-
-    const resposta = await api.put("/api/v1/pagamentos", pagamento.idPagamento, {
-        pagamento: { status: "pago" }
-    });
-
-    if (resposta.statusHttp === 401) return sair();
-
-    if (!resposta.success) {
-        mensagem(msgPagamentos, resposta.error?.message || resposta.message || "Não foi possível marcar como paga.", "erro");
-        return;
-    }
-
-    await carregarAluno();
-    mensagem(msgPagamentos, "Mensalidade marcada como paga.", "ok");
+    mensagem(msgNovoPagamento, "Pagamento registrado!", "ok");
 }
 
 async function excluirPagamento(pagamento) {
@@ -546,6 +523,51 @@ async function excluirPagamento(pagamento) {
 
 btnSair.addEventListener("click", sair);
 btnAtualizar.addEventListener("click", carregarAluno);
+btnPerfil.addEventListener("click", () => {
+    txtEmailPerfil.value = usuario.email ?? "";
+    txtSenhaAtual.value = "";
+    txtNovaSenha.value = "";
+    mensagem(msgPerfil, "");
+    modalPerfil.hidden = false;
+    txtEmailPerfil.focus();
+});
+
+btnCancelarPerfil.addEventListener("click", () => {
+    modalPerfil.hidden = true;
+});
+
+formPerfil.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    btnSalvarPerfil.disabled = true;
+    mensagem(msgPerfil, "Salvando…");
+
+    const resposta = await api.putJson("/api/v1/auth/perfil", {
+        email: txtEmailPerfil.value,
+        senhaAtual: txtSenhaAtual.value,
+        novaSenha: txtNovaSenha.value
+    });
+
+    btnSalvarPerfil.disabled = false;
+    if (resposta.statusHttp === 401) {
+        if (resposta.message === "Senha atual incorreta") {
+            mensagem(msgPerfil, resposta.error?.message || resposta.message, "erro");
+            return;
+        }
+        return sair();
+    }
+
+    if (!resposta.success) {
+        mensagem(msgPerfil, resposta.error?.message || resposta.message || "Não foi possível atualizar seus dados.", "erro");
+        return;
+    }
+
+    api.token = resposta.data.token;
+    Object.assign(usuario, resposta.data.usuario);
+    sessao.data = resposta.data;
+    localStorage.setItem("userData", JSON.stringify({ ...sessao, ...resposta }));
+    boasVindas.textContent = `Olá, ${usuario.nomeAluno ?? "aluno"}`;
+    modalPerfil.hidden = true;
+});
 
 btnNova.addEventListener("click", criarMatricula);
 formNova.addEventListener("submit", (evento) => {
@@ -563,6 +585,9 @@ btnCancelarRemocao.addEventListener("click", fecharRemocao);
 btnConfirmarRemocao.addEventListener("click", confirmarRemocao);
 modalRemover.addEventListener("click", (evento) => {
     if (evento.target === modalRemover) fecharRemocao();
+});
+modalPerfil.addEventListener("click", (evento) => {
+    if (evento.target === modalPerfil) modalPerfil.hidden = true;
 });
 
 /* ------------------------------ início ------------------------------- */

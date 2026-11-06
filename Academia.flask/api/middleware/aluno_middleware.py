@@ -24,18 +24,24 @@ class AlunoMiddleware:
         @wraps(f)
         def decorated_function(*args, **kwargs):
             print("🔷 AlunoMiddleware.validate_body()")
+            # silent=True evita que JSON malformado gere erro do Flask antes
+            # de podermos devolver a resposta padronizada da API.
             body = request.get_json(silent=True)
 
+            # Todas as operações de aluno usam um objeto agrupado em "aluno".
             if not body or 'aluno' not in body:
                 raise ErrorResponse(400, "Erro na validação de dados", {"message": "O campo 'aluno' é obrigatório!"})
 
             aluno = body['aluno']
 
+            # No cadastro a senha é obrigatória; o campo ativo é opcional
+            # e recebe seu valor padrão na camada de Service.
             campos_obrigatorios = ["nomeAluno", "email", "senha"]
             for campo in campos_obrigatorios:
                 if not aluno.get(campo) or str(aluno.get(campo)).strip() == "":
                     raise ErrorResponse(400, "Erro na validação de dados", {"message": f"O campo '{campo}' é obrigatório!"})
 
+            # Só chama a rota quando o envelope e os campos obrigatórios existem.
             return f(*args, **kwargs)
         return decorated_function
 
@@ -49,11 +55,13 @@ class AlunoMiddleware:
             print("🔷 AlunoMiddleware.validate_update_body()")
             body = request.get_json(silent=True)
 
+            # A atualização tem o mesmo envelope do cadastro.
             if not body or 'aluno' not in body:
                 raise ErrorResponse(400, "Erro na validação de dados", {"message": "O campo 'aluno' é obrigatório!"})
 
             aluno = body['aluno']
 
+            # Senha não é exigida no PUT: se omitida, o DAO preserva a atual.
             campos_obrigatorios = ["nomeAluno", "email"]
             for campo in campos_obrigatorios:
                 if not aluno.get(campo) or str(aluno.get(campo)).strip() == "":
@@ -69,6 +77,8 @@ class AlunoMiddleware:
         @wraps(f)
         def decorated_function(*args, **kwargs):
             print("🔷 AlunoMiddleware.validate_id_param()")
+            # As rotas fornecem o ID como argumento nomeado; esta checagem
+            # garante que o Controller não receba a operação sem esse identificador.
             if 'idAluno' not in kwargs:
                 raise ErrorResponse(400, "Erro na validação de dados", {"message": "O parâmetro 'idAluno' é obrigatório!"})
             return f(*args, **kwargs)

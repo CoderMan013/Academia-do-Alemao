@@ -2,7 +2,7 @@ const Aluno = require("../models/Aluno");
 const Matricula = require("../models/Matricula");
 const ErrorResponse = require("../utils/ErrorResponse");
 const validar = require("../utils/Validar");
-const { validarDuracao } = require("../domain/Modalidades");
+const { valorMensalidade } = require("../domain/Treinos");
 
 /**
  * Regras de negócio de Matricula.
@@ -14,11 +14,13 @@ const { validarDuracao } = require("../domain/Modalidades");
 module.exports = class MatriculaService {
     #matriculaDAO;
     #alunoDAO;
+    #pagamentoDAO;
 
-    constructor(matriculaDAODependency, alunoDAODependency) {
+    constructor(matriculaDAODependency, alunoDAODependency, pagamentoDAODependency) {
         console.log("⬆️  MatriculaService.constructor()");
         this.#matriculaDAO = matriculaDAODependency;
         this.#alunoDAO = alunoDAODependency;
+        this.#pagamentoDAO = pagamentoDAODependency;
     }
 
     /** Data de hoje no formato YYYY-MM-DD. */
@@ -29,15 +31,31 @@ module.exports = class MatriculaService {
     }
 
     /**
-     * Soma meses a uma data YYYY-MM-DD (retorna YYYY-MM-DD).
+     * Gera uma mensalidade por mês, do início até o último vencimento
+     * que não ultrapasse a data final do plano.
      * @param {string} dataInicio
-     * @param {number} meses
-     * @returns {string}
+     * @param {string} dataFim
+     * @returns {string[]}
      */
-    static somarMeses(dataInicio, meses) {
-        const [ano, mes, dia] = dataInicio.split("-").map(Number);
-        const data = new Date(Date.UTC(ano, mes - 1 + Number(meses), dia));
-        return data.toISOString().slice(0, 10);
+    static gerarVencimentos(dataInicio, dataFim) {
+        const [anoInicio, mesInicio, diaInicio] = dataInicio.split("-").map(Number);
+        const limite = Date.parse(`${dataFim}T00:00:00Z`);
+        const vencimentos = [];
+
+        for (let deslocamento = 0; ; deslocamento += 1) {
+            const indiceMes = mesInicio - 1 + deslocamento;
+            const ano = anoInicio + Math.floor(indiceMes / 12);
+            const mes = (indiceMes % 12) + 1;
+            const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+            const dia = Math.min(diaInicio, ultimoDia);
+            const data = new Date(Date.UTC(ano, mes - 1, dia));
+
+            if (data.getTime() > limite) break;
+
+            vencimentos.push(data.toISOString().slice(0, 10));
+        }
+
+        return vencimentos;
     }
 
     /**
@@ -71,9 +89,9 @@ module.exports = class MatriculaService {
      *
      * Regras:
      * - o aluno precisa existir;
-     * - o aluno não pode ter outra matrícula ativa na MESMA modalidade
-     *   (pode ter várias modalidades diferentes);
-     * - se dataFim não for informada, é calculada com duracaoMeses (padrão 3).
+     * - o aluno não pode ter outra matrícula ativa no MESMO treino
+     *   (pode ter vários treinos diferentes);
+     * - dataInicio pode ser omitida; dataFim deve ser informada.
      *
      * @param {object} matriculaJson
      * @param {object} usuario - usuário autenticado (vem do token)
@@ -85,15 +103,12 @@ module.exports = class MatriculaService {
         const idAluno = this.#idAlunoDoToken(usuario);
 
         const matricula = new Matricula();
-        let duracaoMeses = 3;
 
         validar(() => {
-            matricula.modalidade = matriculaJson.modalidade;
+            matricula.treino = matriculaJson.treino;
             matricula.status = matriculaJson.status ?? "ativa";
             matricula.dataInicio = matriculaJson.dataInicio ?? MatriculaService.hoje();
-            duracaoMeses = validarDuracao(matriculaJson.duracaoMeses);
-            matricula.dataFim = matriculaJson.dataFim
-                ?? MatriculaService.somarMeses(matricula.dataInicio, duracaoMeses);
+            matricula.dataFim = matriculaJson.dataFim;
         });
 
         const alunoDB = await this.#validarAluno(idAluno);
@@ -105,36 +120,68 @@ module.exports = class MatriculaService {
         });
 
         if (matricula.status === "ativa") {
-            const ativas = await this.#matriculaDAO.countByAlunoModalidade(
+            const ativas = await this.#matriculaDAO.countByAlunoTreino(
                 idAluno,
-                matricula.modalidade,
+                matricula.treino,
                 "ativa"
             );
 
             if (ativas > 0) {
                 throw new ErrorResponse(400, "Matrícula duplicada", {
-                    message: `O aluno ${alunoDB.nomeAluno} já possui uma matrícula ativa em ${matricula.modalidade}`
+                    message: `O aluno ${alunoDB.nomeAluno} já possui uma matrícula ativa no treino ${matricula.treino}`
                 });
             }
         }
 
         const novoId = await this.#matriculaDAO.create(matricula);
 
+        try {
+            if (matricula.status === "ativa") {
+                const vencimentos = MatriculaService.gerarVencimentos(
+                    matricula.dataInicio,
+                    matricula.dataFim
+                );
+                await this.#pagamentoDAO.createMensalidades(
+                    vencimentos.map((dataVencimento) => ({
+                        valor: valorMensalidade(matricula.treino),
+                        dataVencimento,
+                        matriculaId: novoId
+                    }))
+                );
+            }
+        } catch (error) {
+            const criada = new Matricula();
+            validar(() => { criada.idMatricula = novoId; });
+
+            try {
+                const removida = await this.#matriculaDAO.delete(criada);
+                if (!removida) {
+                    throw new Error("A matrícula incompleta não foi removida");
+                }
+            } catch (rollbackError) {
+                throw new AggregateError(
+                    [error, rollbackError],
+                    "Falha ao gerar mensalidades e remover a matrícula incompleta"
+                );
+            }
+
+            throw error;
+        }
+
         return {
             idMatricula: novoId,
-            modalidade: matricula.modalidade,
+            treino: matricula.treino,
             dataInicio: matricula.dataInicio,
             dataFim: matricula.dataFim,
             status: matricula.status,
-            aluno: alunoDB,
-            duracaoMeses
+            aluno: alunoDB
         };
     };
 
     /** @returns {Promise<Array>} */
-    findAll = async () => {
+    findAll = async (usuario) => {
         console.log("🟣 MatriculaService.findAll()");
-        return await this.#matriculaDAO.findAll();
+        return await this.#matriculaDAO.findByAluno(this.#idAlunoDoToken(usuario));
     };
 
     /** @param {number} idAluno @returns {Promise<Array>} */
@@ -144,13 +191,17 @@ module.exports = class MatriculaService {
     };
 
     /** @param {number} idMatricula @returns {Promise<object|null>} */
-    findById = async (idMatricula) => {
+    findById = async (idMatricula, usuario) => {
         console.log("🟣 MatriculaService.findById()");
 
         const matricula = new Matricula();
         validar(() => { matricula.idMatricula = idMatricula; });
 
-        return await this.#matriculaDAO.findById(matricula.idMatricula);
+        const encontrada = await this.#matriculaDAO.findById(matricula.idMatricula);
+        if (encontrada) {
+            this.#autorizar(encontrada, usuario);
+        }
+        return encontrada;
     };
 
     /**
@@ -159,7 +210,8 @@ module.exports = class MatriculaService {
      * @param {object} usuario
      */
     #autorizar = (matricula, usuario) => {
-        if (Number(usuario?.idAluno) !== Number(matricula.aluno.idAluno)) {
+        const idAluno = this.#idAlunoDoToken(usuario);
+        if (idAluno !== Number(matricula.aluno.idAluno)) {
             throw new ErrorResponse(403, "Acesso negado", {
                 message: "Você só pode alterar as suas próprias matrículas"
             });
@@ -167,7 +219,7 @@ module.exports = class MatriculaService {
     };
 
     /**
-     * Atualiza modalidade, datas e status da matrícula.
+     * Atualiza treino, datas e status da matrícula.
      * @param {number} idMatricula
      * @param {object} matriculaJson
      * @param {object} usuario
@@ -176,23 +228,18 @@ module.exports = class MatriculaService {
     updateMatricula = async (idMatricula, matriculaJson, usuario) => {
         console.log("🟣 MatriculaService.updateMatricula()");
 
-        const atual = await this.findById(idMatricula);
+        const atual = await this.findById(idMatricula, usuario);
         if (!atual) {
             return null;
         }
 
-        this.#autorizar(atual, usuario);
-
         const matricula = new Matricula();
         validar(() => {
             matricula.idMatricula = idMatricula;
-            matricula.modalidade = matriculaJson.modalidade ?? atual.modalidade;
+            matricula.treino = matriculaJson.treino ?? atual.treino;
             matricula.status = matriculaJson.status ?? atual.status;
             matricula.dataInicio = matriculaJson.dataInicio ?? atual.dataInicio;
-            matricula.dataFim = matriculaJson.dataFim ?? MatriculaService.somarMeses(
-                matricula.dataInicio,
-                validarDuracao(matriculaJson.duracaoMeses)
-            );
+            matricula.dataFim = matriculaJson.dataFim ?? atual.dataFim;
         });
 
         const alunoDB = await this.#validarAluno(atual.aluno.idAluno);
@@ -204,22 +251,22 @@ module.exports = class MatriculaService {
         });
 
         if (matricula.status === "ativa") {
-            const ativas = await this.#matriculaDAO.countByAlunoModalidade(
+            const ativas = await this.#matriculaDAO.countByAlunoTreino(
                 alunoDB.idAluno,
-                matricula.modalidade,
+                matricula.treino,
                 "ativa",
                 idMatricula
             );
 
             if (ativas > 0) {
                 throw new ErrorResponse(400, "Matrícula duplicada", {
-                    message: `O aluno ${alunoDB.nomeAluno} já possui uma matrícula ativa em ${matricula.modalidade}`
+                    message: `O aluno ${alunoDB.nomeAluno} já possui uma matrícula ativa no treino ${matricula.treino}`
                 });
             }
         }
 
         const atualizou = await this.#matriculaDAO.update(matricula);
-        return atualizou ? await this.findById(idMatricula) : null;
+        return atualizou ? await this.findById(idMatricula, usuario) : null;
     };
 
     /**
@@ -231,12 +278,10 @@ module.exports = class MatriculaService {
     deleteMatricula = async (idMatricula, usuario) => {
         console.log("🟣 MatriculaService.deleteMatricula()");
 
-        const atual = await this.findById(idMatricula);
+        const atual = await this.findById(idMatricula, usuario);
         if (!atual) {
             return false;
         }
-
-        this.#autorizar(atual, usuario);
 
         const matricula = new Matricula();
         validar(() => { matricula.idMatricula = idMatricula; });

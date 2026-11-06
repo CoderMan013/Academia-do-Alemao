@@ -34,7 +34,7 @@ module.exports = class MatriculaController {
     index = async (request, response, next) => {
         console.log("🔵 MatriculaController.index()");
         try {
-            const matriculas = await this.#matriculaService.findAll();
+            const matriculas = await this.#matriculaService.findAll(request.usuarioAutenticado);
 
             return response.status(200).send({
                 success: true,
@@ -68,7 +68,10 @@ module.exports = class MatriculaController {
         console.log("🔵 MatriculaController.show()");
         try {
             const idMatricula = request.params.idMatricula;
-            const matricula = await this.#matriculaService.findById(idMatricula);
+            const matricula = await this.#matriculaService.findById(
+                idMatricula,
+                request.usuarioAutenticado
+            );
 
             if (!matricula) {
                 throw new ErrorResponse(404, "Matrícula não encontrada", {

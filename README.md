@@ -8,12 +8,13 @@
   <img alt="Flask" src="https://img.shields.io/badge/Flask-3-000000?style=flat-square&logo=flask&logoColor=white">
   <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8-4479A1?style=flat-square&logo=mysql&logoColor=white">
   <img alt="JWT" src="https://img.shields.io/badge/JWT-autentica%C3%A7%C3%A3o-000000?style=flat-square&logo=jsonwebtokens&logoColor=white">
-  <img alt="Testes" src="https://img.shields.io/badge/testes-92%2F92-brightgreen?style=flat-square">
+  <img alt="Testes" src="https://img.shields.io/badge/testes-21%2F21-brightgreen?style=flat-square">
 </p>
 
 <p align="center">
   Sistema de academia com <strong>duas APIs independentes</strong>, o mesmo frontend e um banco MySQL
-  de três tabelas. O aluno entra, escolhe a modalidade e acompanha as mensalidades do plano.
+  de três tabelas. O aluno entra, escolhe o treino e acompanha as mensalidades que o sistema gera
+  para o plano.
 </p>
 
 ## Sobre
@@ -26,16 +27,16 @@ relacionadas — **Aluno**, **Matrícula** e **Pagamento**:
 Aluno 1 ─── N Matrícula 1 ─── N Pagamento
 ```
 
-Cada matrícula guarda a **modalidade**, o período e a duração do plano; cada pagamento é uma
-**mensalidade** daquela matrícula. As modalidades são fixas: **Musculação, Cross Fit, Muay Thai,
-Karatê e Boxe**.
+Cada matrícula guarda o **treino** (a coluna chama-se `treino` no banco) e o período do plano; cada
+pagamento é uma **mensalidade** daquela matrícula, com valor fixo por treino. As opções são fixas:
+**Musculação** e **Cross Fit** (R$ 60) e **Muay Thai**, **Karatê** e **Boxe** (R$ 120).
 
 ## Telas
 
 | Painel do aluno | Minhas mensalidades |
 | :---: | :---: |
 | ![Painel do aluno](docs/img/painel-aluno.png) | ![Mensalidades](docs/img/painel-mensalidades.png) |
-| Modalidades, dias restantes e situação | Tabela de mensalidades e formulário de registro |
+| Treinos, dias restantes e situação | Tabela de mensalidades e formulário de registro |
 
 | Login | Cadastro |
 | :---: | :---: |
@@ -51,12 +52,15 @@ flowchart LR
   C --> D[(MySQL<br/>Aluno · Matrícula · Pagamento)]
 ```
 
-- **Minhas modalidades:** cada plano em um cartão com modalidade, período, barra de progresso,
+- **Meus treinos:** cada plano em um cartão com o treino, o período, barra de progresso,
   quantos dias faltam e quantas mensalidades existem nele.
-- **Iniciar novo plano:** modalidade → duração (1, 3, 6 ou 12 meses) → data de início.
-- **Minhas mensalidades:** tabela com vencimento, valor, forma de pagamento, status e data de
-  pagamento. O aluno registra novas mensalidades, marca como pagas e exclui as que lançou errado.
-- **Regras:** e-mail único, uma matrícula ativa por modalidade, e cada aluno só enxerga e altera
+- **Iniciar novo plano:** o aluno informa o treino e o período, e a API já cria uma mensalidade
+  pendente por mês, do início até o último vencimento que não ultrapasse a data final.
+- **Minhas mensalidades:** tabela com treino, vencimento, valor, forma de pagamento, status e data
+  de pagamento. O valor vem do treino (R$ 60 ou R$ 120) e é calculado no servidor. O aluno registra
+  o pagamento informando a forma usada e pode excluir uma mensalidade lançada errado.
+- **Meus dados:** o aluno troca e-mail e, se quiser, a senha — confirmando com a senha atual.
+- **Regras:** e-mail único, uma matrícula ativa por treino, e cada aluno só enxerga e altera
   as próprias matrículas e mensalidades (o dono vem do token, não do corpo da requisição).
 
 ## Tecnologias
@@ -73,8 +77,9 @@ flowchart LR
 ### 1. Banco de dados
 
 No MySQL Workbench (usuário `root`, sem senha), abra e execute o script
-[`docs/Banco.sql`](Academia.node/docs/Banco.sql) inteiro. Ele **recria** o schema `academia_db`
-com as três tabelas e os dados de exemplo.
+[`docs/Banco.sql`](Academia.node/docs/Banco.sql) inteiro. Ele cria o schema `academia_db` e as
+três tabelas sem apagar tabelas ou dados existentes. Os dados de exemplo devem ser inseridos
+apenas uma vez, em um banco novo ou vazio; executar novamente pode gerar erro de chave duplicada.
 
 > Se o seu MySQL usa senha ou outra porta, ajuste a conexão em `Academia.node/Server.js` ou
 > `Academia.flask/server.py`, ou use as variáveis `DB_HOST`, `DB_PORT`, `DB_USER`,
@@ -109,22 +114,21 @@ As duas APIs compartilham o mesmo banco e podem rodar ao mesmo tempo, cada uma n
 | Ana Souza | `ana@academia.com` | `Senha@123` |
 | Bruno Lima | `bruno@academia.com` | `Senha@123` |
 
-O seed traz a Ana com 3 matrículas (2 ativas e 1 concluída) e 5 mensalidades, e o Bruno com
-1 matrícula e 2 mensalidades.
+O seed traz a Ana com 3 matrículas (2 ativas e 1 concluída) e 9 mensalidades, e o Bruno com
+1 matrícula e 4 mensalidades.
 
 ## Testes
 
-A suíte [`_tests/test_academia.mjs`](_tests/test_academia.mjs) cobre o frontend servido, as rotas
-públicas, o login e o cadastro, as regras de matrícula, o CRUD de pagamentos com as permissões por
-dono e o `ON DELETE CASCADE` entre matrícula e mensalidades:
-**92 verificações por API**.
+A suíte [`Academia.flask/tests/test_business_rules.py`](Academia.flask/tests/test_business_rules.py)
+usa `unittest` com DAOs falsos, então roda **sem banco e sem servidor**: são **21 testes** cobrindo
+os preços por treino, os vencimentos mensais, a geração das mensalidades dentro de uma transação, a
+limpeza da forma de pagamento ao voltar para pendente, as permissões por dono e a troca de e-mail e
+senha do perfil.
 
 ```bash
-node _tests/test_academia.mjs http://127.0.0.1:8080   # Node
-node _tests/test_academia.mjs http://127.0.0.1:8081   # Flask
+cd Academia.flask
+python -m unittest discover -s tests -t .
 ```
-
-O teste cria dados temporários e **apaga tudo no final**, então o banco volta ao seed.
 
 ## Estrutura
 
@@ -135,7 +139,7 @@ O teste cria dados temporários e **apaga tudo no final**, então o banco volta 
 │   ├── docs/          Banco.sql
 │   └── static/        telas, CSS e ApiService
 ├── Academia.flask/    API Flask (porta 8081), espelhando as mesmas camadas
-├── _tests/            suíte HTTP que roda contra qualquer uma das APIs
+│   └── tests/         testes de unidade das regras de negócio
 └── docs/              banner e capturas usadas neste README
 ```
 

@@ -1,6 +1,7 @@
 const Pagamento = require("../models/Pagamento");
 const ErrorResponse = require("../utils/ErrorResponse");
 const validar = require("../utils/Validar");
+const { valorMensalidade } = require("../domain/Treinos");
 
 /**
  * Regras de negócio de Pagamento.
@@ -72,19 +73,25 @@ module.exports = class PagamentoService {
         console.log("🟣 PagamentoService.createPagamento()");
 
         const pagamento = new Pagamento();
-
         validar(() => {
-            pagamento.valor = pagamentoJson.valor;
+            pagamento.matriculaId = pagamentoJson?.matricula?.idMatricula;
             pagamento.dataVencimento = pagamentoJson.dataVencimento
-                ?? pagamentoJson.dataPagamento
                 ?? PagamentoService.hoje();
-            pagamento.metodo = pagamentoJson.metodo ?? "Pix";
+            pagamento.metodo = pagamentoJson.metodo ?? "";
             pagamento.status = pagamentoJson.status ?? "pendente";
             pagamento.dataPagamento = pagamentoJson.dataPagamento ?? null;
-            pagamento.matriculaId = pagamentoJson?.matricula?.idMatricula;
         });
 
-        await this.#matriculaDoAluno(pagamento.matriculaId, usuario);
+        const matricula = await this.#matriculaDoAluno(pagamento.matriculaId, usuario);
+        validar(() => {
+            pagamento.valor = valorMensalidade(matricula.treino);
+        });
+
+        if (pagamento.status === "pago" && !pagamento.metodo) {
+            throw new ErrorResponse(400, "Erro na validação de dados", {
+                message: "Informe a forma de pagamento para registrar a mensalidade como paga"
+            });
+        }
 
         // Marcar como pago sem informar a data significa "pago agora".
         if (pagamento.status === "pago" && !pagamento.dataPagamento) {
@@ -96,9 +103,9 @@ module.exports = class PagamentoService {
     };
 
     /** @returns {Promise<Array>} */
-    findAll = async () => {
+    findAll = async (usuario) => {
         console.log("🟣 PagamentoService.findAll()");
-        return await this.#pagamentoDAO.findAll();
+        return await this.#pagamentoDAO.findByAluno(this.#idAlunoDoToken(usuario));
     };
 
     /** @param {number} idAluno @returns {Promise<Array>} */
@@ -115,13 +122,17 @@ module.exports = class PagamentoService {
     };
 
     /** @param {number} idPagamento @returns {Promise<object|null>} */
-    findById = async (idPagamento) => {
+    findById = async (idPagamento, usuario) => {
         console.log("🟣 PagamentoService.findById()");
 
         const pagamento = new Pagamento();
         validar(() => { pagamento.idPagamento = idPagamento; });
 
-        return await this.#pagamentoDAO.findById(pagamento.idPagamento);
+        const encontrado = await this.#pagamentoDAO.findById(pagamento.idPagamento);
+        if (encontrado) {
+            this.#autorizar(encontrado, usuario);
+        }
+        return encontrado;
     };
 
     /** Confere se o pagamento pertence a uma matrícula do aluno do token. */
@@ -145,25 +156,29 @@ module.exports = class PagamentoService {
     updatePagamento = async (idPagamento, pagamentoJson, usuario) => {
         console.log("🟣 PagamentoService.updatePagamento()");
 
-        const atual = await this.findById(idPagamento);
+        const atual = await this.findById(idPagamento, usuario);
         if (!atual) {
             return null;
         }
 
-        this.#autorizar(atual, usuario);
-
         const pagamento = new Pagamento();
         validar(() => {
             pagamento.idPagamento = idPagamento;
-            pagamento.valor = pagamentoJson.valor ?? atual.valor;
+            pagamento.valor = valorMensalidade(atual.matricula.treino);
             pagamento.dataVencimento = pagamentoJson.dataVencimento ?? atual.dataVencimento;
-            pagamento.metodo = pagamentoJson.metodo ?? atual.metodo;
             pagamento.status = pagamentoJson.status ?? atual.status;
+            pagamento.metodo = pagamentoJson.metodo ?? atual.metodo ?? "";
             pagamento.dataPagamento = pagamentoJson.dataPagamento !== undefined
                 ? pagamentoJson.dataPagamento
                 : atual.dataPagamento;
             pagamento.matriculaId = atual.matricula.idMatricula;
         });
+
+        if (pagamento.status === "pago" && !pagamento.metodo) {
+            throw new ErrorResponse(400, "Erro na validação de dados", {
+                message: "Informe a forma de pagamento para registrar a mensalidade como paga"
+            });
+        }
 
         if (pagamento.status === "pago" && !pagamento.dataPagamento) {
             pagamento.dataPagamento = PagamentoService.hoje();
@@ -171,10 +186,11 @@ module.exports = class PagamentoService {
 
         if (pagamento.status !== "pago") {
             pagamento.dataPagamento = null;
+            pagamento.metodo = "";
         }
 
         const atualizou = await this.#pagamentoDAO.update(pagamento);
-        return atualizou ? await this.findById(idPagamento) : null;
+        return atualizou ? await this.findById(idPagamento, usuario) : null;
     };
 
     /**
@@ -186,12 +202,10 @@ module.exports = class PagamentoService {
     deletePagamento = async (idPagamento, usuario) => {
         console.log("🟣 PagamentoService.deletePagamento()");
 
-        const atual = await this.findById(idPagamento);
+        const atual = await this.findById(idPagamento, usuario);
         if (!atual) {
             return false;
         }
-
-        this.#autorizar(atual, usuario);
 
         const pagamento = new Pagamento();
         validar(() => { pagamento.idPagamento = idPagamento; });
