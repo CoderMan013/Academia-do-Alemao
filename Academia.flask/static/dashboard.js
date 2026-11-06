@@ -595,3 +595,40 @@ modalPerfil.addEventListener("click", (evento) => {
 boasVindas.textContent = `Olá, ${usuario.nomeAluno ?? "aluno"}`;
 
 if (token) carregarAluno();
+
+/* -------------------------------- abas ------------------------------- */
+
+const abas = Array.from(document.querySelectorAll(".tab"));
+
+function mostrarAba(idPainel) {
+    for (const aba of abas) {
+        const ativa = aba.dataset.painel === idPainel;
+        aba.setAttribute("aria-selected", String(ativa));
+        aba.tabIndex = ativa ? 0 : -1;
+
+        const painel = document.getElementById(aba.dataset.painel);
+        if (painel) painel.hidden = !ativa;
+    }
+
+    if (idPainel) history.replaceState(null, "", `#${idPainel}`);
+}
+
+for (const [indice, aba] of abas.entries()) {
+    aba.addEventListener("click", () => mostrarAba(aba.dataset.painel));
+
+    aba.addEventListener("keydown", (evento) => {
+        if (evento.key !== "ArrowRight" && evento.key !== "ArrowLeft") return;
+
+        evento.preventDefault();
+        const passo = evento.key === "ArrowRight" ? 1 : -1;
+        const proxima = abas[(indice + passo + abas.length) % abas.length];
+
+        proxima.focus();
+        mostrarAba(proxima.dataset.painel);
+    });
+}
+
+if (abas.length > 0) {
+    const abaInicial = abas.find((aba) => `#${aba.dataset.painel}` === window.location.hash) ?? abas[0];
+    mostrarAba(abaInicial.dataset.painel);
+}

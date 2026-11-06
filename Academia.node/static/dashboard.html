@@ -43,8 +43,20 @@
     <div class="view" id="viewAluno">
       <section class="stat-grid" id="statsAluno" aria-label="Resumo do aluno"></section>
 
+      <!-- ------------------------------- ABAS ------------------------------- -->
+      <nav class="tabs" aria-label="Seções do painel" role="tablist">
+        <button class="tab" type="button" role="tab" aria-selected="true"
+          aria-controls="painelTreinos" data-painel="painelTreinos">Meus treinos</button>
+        <button class="tab" type="button" role="tab" aria-selected="false"
+          aria-controls="painelNovo" data-painel="painelNovo">Novo plano</button>
+        <button class="tab" type="button" role="tab" aria-selected="false"
+          aria-controls="painelMensalidades" data-painel="painelMensalidades">Mensalidades</button>
+        <button class="tab" type="button" role="tab" aria-selected="false"
+          aria-controls="painelPagamento" data-painel="painelPagamento">Pagamento</button>
+      </nav>
+
       <!-- ---------------------------- MATRÍCULAS ---------------------------- -->
-      <section class="card panel">
+      <section class="card panel" id="painelTreinos" role="tabpanel" aria-labelledby="painelTreinos">
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Meus treinos</h2>
@@ -56,7 +68,7 @@
         <div class="matricula-grid" id="minhasMatriculas"></div>
       </section>
 
-      <section class="card panel">
+      <section class="card panel" id="painelNovo" role="tabpanel" aria-labelledby="painelNovo" hidden>
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Iniciar novo plano</h2>
@@ -88,7 +100,7 @@
       </section>
 
       <!-- ---------------------------- PAGAMENTOS ---------------------------- -->
-      <section class="card panel">
+      <section class="card panel" id="painelMensalidades" role="tabpanel" aria-labelledby="painelMensalidades" hidden>
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Minhas mensalidades</h2>
@@ -101,7 +113,7 @@
 
       </section>
 
-      <section class="card panel">
+      <section class="card panel" id="painelPagamento" role="tabpanel" aria-labelledby="painelPagamento" hidden>
         <div class="panel__head">
           <div>
             <h2 class="panel__title">Registrar pagamento</h2>

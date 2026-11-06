@@ -36,7 +36,7 @@ pagamento é uma **mensalidade** daquela matrícula, com valor fixo por treino. 
 | Painel do aluno | Minhas mensalidades |
 | :---: | :---: |
 | ![Painel do aluno](docs/img/painel-aluno.png) | ![Mensalidades](docs/img/painel-mensalidades.png) |
-| Treinos, dias restantes e situação | Tabela de mensalidades e formulário de registro |
+| Abas do painel com os treinos | Aba de mensalidades com a tabela |
 
 | Login | Cadastro |
 | :---: | :---: |
@@ -52,6 +52,8 @@ flowchart LR
   C --> D[(MySQL<br/>Aluno · Matrícula · Pagamento)]
 ```
 
+- **Abas:** o painel é dividido em **Meus treinos**, **Novo plano**, **Mensalidades** e **Pagamento**,
+  e só a aba escolhida aparece na tela — sem rolar a página inteira para achar cada parte.
 - **Meus treinos:** cada plano em um cartão com o treino, o período, barra de progresso,
   quantos dias faltam e quantas mensalidades existem nele.
 - **Iniciar novo plano:** o aluno informa o treino e o período, e a API já cria uma mensalidade
